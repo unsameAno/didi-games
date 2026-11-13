@@ -91,7 +91,7 @@
 <div class="head">
   <div class="top">
     <span id="logoSlot"></span>
-    <h1><i data-ic="moon" data-size="18"></i><span data-t="gameName"></span></h1>
+    <h1><i data-ic="mafia" data-size="16"></i><span data-t="gameName"></span></h1>
     <span class="code-chip" id="codeChip"></span>
     <span class="grow"></span>
     <button class="btn-yellow hidden" id="roleBtn" data-t="myRole"></button>
@@ -406,7 +406,7 @@
     const specLine = () => !playing ? `<div class="sub">${t('spec')}</div>` : !aliveMe ? `<div class="sub">${t('deadSpec')}</div>` : '';
 
     // ── 위쪽 카드
-    if (ph === 'lobby') draw('pin', ['l', list.length, JSON.stringify(c), NG.ui].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('moon', 44)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div><div class="sum"><b style="color:var(--muted);font-size:11px">${t('sumT')}</b><br>${esc(cfgSum(c, Math.max(n, cfgCount(c))))}</div></div>`; });
+    if (ph === 'lobby') draw('pin', ['l', list.length, JSON.stringify(c), NG.ui].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('mafia', 64)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div><div class="sum"><b style="color:var(--muted);font-size:11px">${t('sumT')}</b><br>${esc(cfgSum(c, Math.max(n, cfgCount(c))))}</div></div>`; });
     else if (ph === 'role') draw('pin', ['r', st.gid].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('moon', 44)}</div><div class="q">${t('roleTitle')}…</div><div class="sub">${esc(cfgSum(c, order().length))}</div></div>`; });
     else if (ph === 'day') draw('pin', ['d', dkey(), infoText(), aliveMe].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="lbl">${t('dayT', st.day)} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div>${timerHTML(sec(c.talk))}<div class="q">${t('daySub')}</div>${privLine()}${specLine()}</div>`; });
     else if (ph === 'vote') draw('pin', ['v', dkey(), aliveMe].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="lbl">${t('voteT', st.day)} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div>${timerHTML(sec(40))}<div class="q">${t('voteSub')}</div>${specLine()}</div>`; });
@@ -428,7 +428,7 @@
         el.innerHTML = h + '</div>';
       });
     }
-    else if (ph === 'end') draw('pin', ['e', st.gid, st.winner].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon(st.winner === 'maf' ? 'moon' : 'trophy', 44)}</div><div class="q">${esc(winText())}</div>${playing ? `<div class="ann ${iWon() ? 'good' : 'bad'}">${t(iWon() ? 'youWin' : 'youLose')}</div>` : ''}</div>`; });
+    else if (ph === 'end') draw('pin', ['e', st.gid, st.winner].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon(st.winner === 'maf' ? 'mafia' : 'trophy', st.winner === 'maf' ? 64 : 44)}</div><div class="q">${esc(winText())}</div>${playing ? `<div class="ann ${iWon() ? 'good' : 'bad'}">${t(iWon() ? 'youWin' : 'youLose')}</div>` : ''}</div>`; });
     if (tl && $('tleft')) { const total = +$('tbar').dataset.total; $('tleft').textContent = NG.fmtTime(st.timeLeft); tl.style.width = Math.max(0, Math.min(100, (st.timeLeft - 1) / Math.max(1, total - 1) * 100)) + '%'; $('tbar').classList.toggle('hot', st.timeLeft <= Math.min(10, total / 4)); }
 
     // ── 설정 (대기실)

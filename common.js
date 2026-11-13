@@ -26,34 +26,35 @@
   // ═══════════════════ 게임 목록 ═══════════════════
   // type: 'multi' (방 만들고 친구와) | 'solo' (혼자 바로 시작)
   // anyLang: 언어가 달라도 같은 방에서 플레이 가능(방 언어 고정 안 함) · rank 없으면 랭킹 탭에 안 나옴
+  // icon/bg: 썸네일 그림과 칸 배경색 · anchor: 'bottom'이면 그림을 칸 바닥에 붙임
   // info: 로비 소개 팝업용 { time, rules[3], tip? }
   NG.GAMES = [
-    { id: 'draw',  type: 'multi', page: 'draw.html',  icon: 'palette', min: 2, max: 10, name: { ko: 'Draw Mind', ja: 'Draw Mind' },
+    { id: 'draw',  type: 'multi', page: 'draw.html',  icon: 'palette', bg: '#22386e', min: 2, max: 10, name: { ko: 'Draw Mind', ja: 'Draw Mind' },
       desc: { ko: '그림 보고 제시어 맞히기', ja: '絵を見てお題を当てよう' }, rank: { field: 'wins', label: { ko: '승리', ja: '勝利' } },
       info: { time: { ko: '약 5~15분', ja: '約5〜15分' }, rules: {
         ko: ['차례가 되면 제시어 4개 중 하나를 골라 그려요.', '친구들은 그림을 보고 채팅으로 정답을 맞혀요.', '빨리 맞힐수록, 어려운 단어일수록 점수가 높아요.'],
         ja: ['順番が来たら、お題4つから1つ選んで描きます。', 'みんなは絵を見てチャットで答えを当てます。', '早く当てるほど、難しいお題ほど高得点です。'] } } },
-    { id: 'who',   type: 'multi', page: 'who.html',   icon: 'who', min: 3, max: 10, anyLang: true, name: { ko: '누구 누구', ja: 'だれだれ' },
+    { id: 'who',   type: 'multi', page: 'who.html',   icon: 'who', bg: '#4a3a10', min: 3, max: 10, anyLang: true, name: { ko: '누구 누구', ja: 'だれだれ' },
       desc: { ko: '첫인상으로 뽑는 무기명 투표', ja: '第一印象で選ぶ匿名投票' },
       info: { time: { ko: '약 5분', ja: '約5分' }, tip: { ko: '4명 이상 추천', ja: '4人以上がおすすめ' }, rules: {
         ko: ['주제가 나오면 가장 어울리는 사람을 한 명 골라요.', '무기명 투표라 누가 골랐는지는 아무도 몰라요.', '가장 많이 뽑힌 사람만 공개! 10개 주제를 돌아요.'],
         ja: ['お題が出たら、一番似合いそうな人を1人選びます。', '匿名投票なので、誰が選んだかは分かりません。', '一番多く選ばれた人だけ発表！お題は10個です。'] } } },
-    { id: 'ingyu', type: 'multi', page: 'ingyu.html', icon: 'search', min: 3, max: 10, name: { ko: '잉규게임', ja: 'インギュゲーム' },
+    { id: 'ingyu', type: 'multi', page: 'ingyu.html', icon: 'search', bg: '#11463a', min: 3, max: 10, name: { ko: '잉규게임', ja: 'インギュゲーム' },
       desc: { ko: '서로 주제어를 정해 주고 질문으로 맞히기 (구 양세찬 게임)', ja: 'お互いにお題を決めて、質問で当てよう（私は誰でしょうゲーム）' }, rank: { field: 'wins', label: { ko: '승리', ja: '勝利' } },
       info: { time: { ko: '약 10~20분', ja: '約10〜20分' }, rules: {
         ko: ['서로 다음 사람의 주제어를 정해 줘요. 내 주제어는 나만 못 봐요.', '내 차례에 질문을 하나 하면 친구들이 예 / 아니오 / 애매해로 답해요.', '먼저 맞힐수록 순위가 높아요. 정답은 띄어쓰기 없이, 오타는 오답!'],
         ja: ['次の人のお題をお互いに決めます。自分のお題は自分だけ見えません。', '自分の番に質問を1つすると、みんなが「はい／いいえ／微妙」で答えます。', '早く当てるほど順位が上。答えはスペースなし、打ち間違いは不正解！'] } } },
-    { id: 'mafia', type: 'multi', page: 'mafia.html', icon: 'moon', min: 4, max: 15, name: { ko: '마피아', ja: 'マフィア' },
+    { id: 'mafia', type: 'multi', page: 'mafia.html', icon: 'mafia', bg: '#4a1428', anchor: 'bottom', min: 4, max: 15, name: { ko: '마피아', ja: 'マフィア' },
       desc: { ko: '낮에는 토론, 밤에는 암살. 숨은 마피아를 찾아라', ja: '昼は議論、夜は襲撃。隠れたマフィアを探せ' }, rank: { field: 'wins', label: { ko: '승리', ja: '勝利' } },
       info: { time: { ko: '약 15~40분', ja: '約15〜40分' }, tip: { ko: '6~12명 추천', ja: '6〜12人がおすすめ' }, rules: {
         ko: ['시작하면 각자 비밀 역할을 받아요. 방장이 역할 구성을 정해요.', '낮에는 토론하고 투표로 한 명을 처형, 밤에는 마피아와 능력자가 움직여요.', '마피아를 모두 찾으면 시민 승리, 마피아가 절반이 되면 마피아 승리!'],
         ja: ['スタートすると秘密の役職が配られます。構成はホストが決めます。', '昼は議論して投票で1人を処刑、夜はマフィアと能力者が動きます。', 'マフィアを全員見つければ市民の勝ち、マフィアが半数になればマフィアの勝ち！'] } } },
-    { id: 'react', type: 'solo',  page: 'react.html', icon: 'bolt', min: 1, max: 1, name: { ko: '반응속도 테스트', ja: '反射神経テスト' },
+    { id: 'react', type: 'solo',  page: 'react.html', icon: 'bolt', bg: '#2a2466', min: 1, max: 1, name: { ko: '반응속도 테스트', ja: '反射神経テスト' },
       desc: { ko: '초록불이 켜지면 바로 터치!', ja: '緑になったらすぐタップ！' }, rank: { field: 'avg', label: { ko: '평균 기록', ja: '平均記録' }, asc: true, unit: 'ms' },
       info: { time: { ko: '약 1분', ja: '約1分' }, rules: {
         ko: ['빨간 화면이 초록색으로 바뀌는 순간 터치!', '5번 재서 평균으로 랭킹에 올라가요.', '초록색 전에 누르면 반칙, 그 라운드는 다시 해요.'],
         ja: ['赤い画面が緑に変わった瞬間にタップ！', '5回測って、平均でランキングに載ります。', '緑になる前に押すと反則、そのラウンドはやり直し。'] } } },
-    { id: 'aim',   type: 'solo',  page: 'aim.html',   icon: 'target', min: 1, max: 1, name: { ko: '에임 테스트', ja: 'エイムテスト' },
+    { id: 'aim',   type: 'solo',  page: 'aim.html',   icon: 'target', bg: '#123a48', min: 1, max: 1, name: { ko: '에임 테스트', ja: 'エイムテスト' },
       desc: { ko: '30초 동안 원을 최대한 많이 터치!', ja: '30秒で丸をできるだけ多くタップ！' }, rank: { field: 'hits', label: { ko: '맞힌 개수', ja: '当てた数' }, unit: { ko: '개', ja: '個' }, sub: 'acc' },
       info: { time: { ko: '30초', ja: '30秒' }, rules: {
         ko: ['원이 나타나면 최대한 빨리 터치해요.', '빗나가면 남은 시간이 0.5초 줄어들어요.', '30초 동안 맞힌 개수로 랭킹에 올라가요.'],
@@ -201,8 +202,8 @@
   ];
   const ICONS = {
     pad: ['..kkkkkkkkkkkk..', '.kllllllllllllk.', 'klvvwvvvvvvyvvvk', 'kvvwwwvvvvvpvmvk', 'kvvvwvvvvvvvgvvk', 'kvvvvvvvvvvvvvvk', 'kvvvvkkkkkkvvvvk', 'kvvvk......kvvvk', '.kkk........kkk.'],
-    palette: ['...kkkkkk...', '..kwwwwwwk..', '.kwpwwwywwk.', 'kwwwwwwwwmk.', 'kwgwwwkkwwk.', 'kwwwwk..kwk.', 'kwvwwwkkwwk.', '.kwwwwwwwk..', '..kkwwwwk...', '....kkkk....'],
-    bolt: ['......kkkk', '.....kyyk.', '....kyyk..', '...kyyk...', '..kyyykkk.', '.kyyyyyyk.', '.kkkkyyk..', '....kyk...', '...kyk....', '...kk.....'],
+    palette: ['................', '................', '.....kkkkkk.....', '...kknnnnnnkk...', '..knnpnnnnynnk..', '.knnppnnnnyynnk.', '.knnnnnnnnnnnnk.', '.kngnnnnnnnnmnk.', '.knggnnnnnnmmnk.', '.knnnnnkkknnnnk.', '.knnvnk...knnnk.', '..knvvnkkknnnk..', '...kknnnnnnkk...', '.....kkkkkk.....', '................', '................'],
+    bolt: ['................', '........kkkkkk..', '.......kqyyyk...', '......kqyyyk....', '.....kqyyyk.....', '....kqyyykkkkk..', '...kqyyyyyyyyk..', '..kkkkkyyyyyk...', '......kyyyok....', '.....kyyyok.....', '....kyyook......', '...kyyook.......', '...kyok.........', '..kyok..........', '..kkk...........', '................'],
     door: ['.kkkkkkkk.', '.kbbbbbbk.', '.kbnnnnbk.', '.kbnnnnbk.', '.kbbbbbbk.', '.kbnnnybk.', '.kbnnnnbk.', '.kbnnnnbk.', '.kbbbbbbk.', 'kkkkkkkkkk'],
     trophy: ['kkkkkkkkkk', 'kyyyyyywyk', 'ykyyyyywky', 'ykyyyyyyky', '.kkyyyykk.', '...kyyk...', '....kk....', '...kyyk...', '..kkkkkk..', '..kooook..', '..kkkkkk..'],
     globe: ['...kkkk...', '..kgmmgk..', '.kmmmggmk.', 'kgmmggggmk', 'kggmgggmmk', 'kgggggmmmk', 'kmmggggmgk', '.kgmmgggk.', '..kgggmk..', '...kkkk...'],
@@ -212,16 +213,17 @@
     crown: ['k...kk...k', 'kk.kyyk.kk', 'kykyyyykyk', 'kyyyyyyyyk', 'kypyymyygk', 'kyyyyyyyyk', 'kkkkkkkkkk'],
     home: ['....kk....', '...kppk...', '..kppppk..', '.kppppppk.', 'kkkkkkkkkk', '.kwwwwwwk.', '.kwwkkwwk.', '.kwwkykwk.', '.kkkkkkkk.'],
     play: ['kk......', 'kwkk....', 'kwwwkk..', 'kwwwwwk.', 'kwwwwwk.', 'kwwwkk..', 'kwkk....', 'kk......'],
-    target: ['...kkkk...', '.kkrrrrkk.', '.krwwwwrk.', 'krwwrrwwrk', 'krwrrrrwrk', 'krwrrrrwrk', 'krwwrrwwrk', '.krwwwwrk.', '.kkrrrrkk.', '...kkkk...'],
-    search: ['..kkkk....', '.kwwwwk...', 'kwggggwk..', 'kwggggwk..', 'kwggggwk..', 'kwggggwk..', '.kwwwwkk..', '..kkkkbbk.', '......kbbk', '.......kk.'],
+    target: ['....kkkkkkkk....', '..kkrrrrrrrrkk..', '.krrwwwwwwwwrrk.', '.krwwrrrrrrwwrk.', 'krwwrrwwwwrrwwrk', 'krwrrwwrrwwrrwrk', 'krwrwwrrrrwwrwrk', 'krwrwrryyrrwrwrk', 'krwrwrryyrrwrwrk', 'krwrwwrrrrwwrwrk', 'krwrrwwrrwwrrwrk', 'krwwrrwwwwrrwwrk', '.krwwrrrrrrwwrk.', '.krrwwwwwwwwrrk.', '..kkrrrrrrrrkk..', '....kkkkkkkk....'],
+    search: ['....kkkkkkkk....', '...kyyyyyyyyk...', '...kyykkkkyyk...', '...kyyyyykyyk...', '...kyyyykyyyk...', '...kyyyyyyyyk...', '...kyyyykyyyk...', '..kkkkkkkkkkkk..', '.kffffffffffffk.', '.kffkffffffkffk.', '.kffkffffffkffk.', '.kfpffffffffpfk.', '.kffffkkkkffffk.', '..kffffffffffk..', '...kkffffffkk...', '.....kkkkkk.....'],
+    mafia: ['.....llllll.....', '....lxxxxxxl....', '...lxxxxxxxxl...', '...lxxxxxxxxl...', '..llppppppppll..', '.lxxxxxxxxxxxxl.', '..llxxxxxxxxll..', '...lxxxxxxxxl...', '...llxxxxxxll...', '..lxxxxxxxxxxl..', '.lxxxxxxxxxxxxl.', 'lxxxxxxxxxxxxxxl', 'lxxxxxxxxxxxxxxl', 'lxxxxxxxxxxxxxxl', 'lxxxxxxxxxxxxxxl', 'lxxxxxxxxxxxxxxl'],
     moon: ['....kkkk..', '..kkyyyk..', '.kyyykk...', '.kyyk.....', 'kyyyk.....', 'kyyyk.....', '.kyyk.....', '.kyyykk...', '..kkyyyk..', '....kkkk..'],
     sound: ['....kk....', '...kwk..k.', 'kkkwwk...k', 'kwwwwk.k.k', 'kwwwwk.k.k', 'kkkwwk...k', '...kwk..k.', '....kk....'],
     note: ['...kkkkkk.', '...kwwwwk.', '...kwkkwk.', '...kwk.kk.', '...kwk....', '.kkkwk....', 'kwwwwk....', 'kwwwk.....', '.kkk......'],
-    who: ['..kkkkkk..', '.kvvvvvvk.', 'kvvwwwwvvk', 'kvwvvvvwvk', 'kvvvvvwwvk', 'kvvvvwwvvk', 'kvvvvwvvvk', 'kvvvvvvvvk', 'kvvvvwvvvk', '.kvvvvvvk.', '..kkkkkk..'],
+    who: ['.....kkkkkk.....', '.....kwkkwk.....', '.....kwwwkk.....', '.....kwwkwk.....', '.....kwwwwk.....', '.....kwwkwk.....', '.....kwwwwk.....', '..kkkkkkkkkkkk..', '.kvvvvkkkkvvvvk.', '.kvlvvvvvvvvvvk.', '.kvlvvvvvvvvvvk.', '.kvvvvvppvvvvvk.', '.kvvvvppppvvvvk.', '.kvvvvvppvvvvvk.', '.kddddddddddddk.', '..kkkkkkkkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],
     back: ['...kk.....', '..kwk.....', '.kwwkkkkk.', 'kwwwwwwwwk', '.kwwkkkkk.', '..kwk.....', '...kk.....'],
   };
-  const ICON_PAL = {'k': '#2a1f3d', 'w': '#ffffff', 'y': '#ffd23f', 'p': '#ff4d8d', 'm': '#2ee6a6', 'g': '#4d8dff', 'v': '#a46bff', 'l': '#c9a8ff', 'o': '#ff9f3a', 'r': '#e2506e', 's': '#8e94a8', 'd': '#5a4a7a', 'b': '#9b6a3f', 'n': '#c8955f'};
+  const ICON_PAL = {'k': '#2a1f3d', 'w': '#ffffff', 'y': '#ffd23f', 'p': '#ff4d8d', 'm': '#2ee6a6', 'g': '#4d8dff', 'v': '#a46bff', 'l': '#c9a8ff', 'o': '#ff9f3a', 'r': '#e2506e', 's': '#8e94a8', 'd': '#5a4a7a', 'b': '#9b6a3f', 'n': '#c8955f', 'x': '#07050e', 'f': '#ffd9b0', 'q': '#fff1a8'};
   const AV_COMMON = {'k': '#2a1f3d', 'e': '#1d1433', 'w': '#ffffff', 'p': '#ff8fb1', 'm': '#e2506e'};
   NG.AV = AV;
   const pxSVG = (rows, col, size, h) => {

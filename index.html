@@ -25,6 +25,7 @@
   .ltabs .badge.zero { background: var(--line); color: var(--muted); }
 
   .sec.hidden { display: none; }
+  .gic.btm, .ic.btm, .info-ic.btm { align-items: flex-end !important; }
   .gsec + .gsec { margin-top: 30px; }
   .gsec-h { display: flex; align-items: center; gap: 8px; margin: 0 2px 14px; }
   .gsec-h h2 { font-size: 16px; color: var(--text); }
@@ -34,7 +35,7 @@
   .gsec-h .tagc.solo { background: var(--mint); }
   .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px 16px; padding: 3px; }
   .gcard { background: var(--panel); padding: 14px; cursor: pointer; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: auto auto; gap: 10px 14px; align-items: center; text-align: left; --bc: var(--line); --dc: var(--ink); --dp: 8px; min-height: 0; animation: stepin .25s steps(3) both; }
-  .gcard .gic { grid-row: 1 / span 2; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: var(--ink); align-self: start; }
+  .gcard .gic { grid-row: 1 / span 2; width: 64px; height: 64px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; background: var(--ink); align-self: start; }
   .gcard .gtx { min-width: 0; }
   .gcard b { display: block; font-size: 17px; color: var(--text); margin-bottom: 4px; word-break: keep-all; }
   .gcard small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; word-break: keep-all; }
@@ -93,7 +94,7 @@
   .modal .box { width: 100%; max-width: 360px; text-align: center; padding: 22px 20px; animation: pop .2s steps(3); }
   .modal h2 { font-size: 18px; margin-bottom: 18px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .modal .box.info { max-width: 380px; max-height: calc(100dvh - 40px); overflow-y: auto; }
-  .info-ic { width: 72px; height: 72px; background: var(--ink); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .info-ic { width: 84px; height: 84px; box-shadow: inset 0 0 0 3px rgba(0,0,0,.35); background: var(--ink); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
   .modal .info h2 { margin-bottom: 6px; font-size: 20px; }
   .info-desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
   .info-meta { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 16px; padding: 3px; }
@@ -123,12 +124,12 @@
     .online:not(.fold) h3 { margin-bottom: 10px; }
     .online.fold .olist, .online.fold .omore, .online.fold .ohide, .online.fold .ohint { display: none; }
     .games { grid-template-columns: 1fr; gap: 18px; }
-    .gcard { grid-template-columns: 56px minmax(0,1fr) auto; grid-template-rows: auto; padding: 12px; }
-    .gcard .gic { grid-row: auto; width: 56px; height: 56px; }
+    .gcard { grid-template-columns: 64px minmax(0,1fr) auto; grid-template-rows: auto; padding: 12px; }
+    .gcard .gic { grid-row: auto; }
     .gcard .cta { justify-self: end; padding: 8px 10px; }
     .gcard .cta .lbl { display: none; }
   }
-  @media (max-width: 360px) { .gcard { grid-template-columns: 48px minmax(0,1fr) auto; gap: 10px; } .gcard .gic { width: 48px; height: 48px; } }
+  @media (max-width: 360px) { .gcard { gap: 10px; } }
 </style>
 </head>
 <body>
@@ -328,7 +329,7 @@
       NG.GAMES.filter(g => (g.type || 'multi') === type).forEach((g, i) => {
         const c = NG.el('button', 'gcard ' + type); c.style.animationDelay = (i * 0.06) + 's';
         const ppl = type === 'solo' ? NG.t('solo') : NG.t('people', g.min, g.max);
-        c.innerHTML = `<span class="gic">${NG.icon(g.icon, 40)}</span><span class="gtx"><b>${g.name[NG.ui]}</b><small>${g.desc[NG.ui]}</small><span class="meta">${NG.icon('people', 14)} ${ppl}</span></span>`
+        c.innerHTML = `<span class="gic${g.anchor === 'bottom' ? ' btm' : ''}" style="background:${g.bg || ''}">${NG.icon(g.icon, 48)}</span><span class="gtx"><b>${g.name[NG.ui]}</b><small>${g.desc[NG.ui]}</small><span class="meta">${NG.icon('people', 14)} ${ppl}</span></span>`
           + `<span class="cta">${NG.icon('play', 10)}<span class="lbl">${NG.t(type === 'solo' ? 'playNow' : 'newRoom')}</span></span>`;
         c.addEventListener('click', () => openInfo(g));
         w.appendChild(c);
@@ -347,7 +348,7 @@
       if (!list.length) { w.appendChild(NG.el('div', 'empty pxb', NG.t('noRooms'))); return; }
       for (const r of list) {
         const g = NG.game(r.game); const row = NG.el('div', 'rroom pxb');
-        row.innerHTML = `<span class="ic">${NG.icon(g.icon, 26)}</span><span class="info"><b>${g.name[NG.ui]}</b><small><span><span class="dot ${r.phase === 'playing' ? 'play' : ''}"></span>${NG.t(r.phase === 'playing' ? 'phase_playing' : 'phase_lobby')}</span><span>${NG.avatarSVG(r.hostAv, 16)} ${NG.t('hostTag', escapeHtml(r.hostName || '?'))}</span><span>${NG.t('rooms_people', r.count || 0, r.max || g.max)}</span><span>${g.anyLang ? NG.icon('globe', 14) : (r.lang === 'ja' ? '🇯🇵' : '🇰🇷')}</span></small></span><span class="code">${r.code}</span>`;
+        row.innerHTML = `<span class="ic${g.anchor === 'bottom' ? ' btm' : ''}" style="background:${g.bg || ''}">${NG.icon(g.icon, 32)}</span><span class="info"><b>${g.name[NG.ui]}</b><small><span><span class="dot ${r.phase === 'playing' ? 'play' : ''}"></span>${NG.t(r.phase === 'playing' ? 'phase_playing' : 'phase_lobby')}</span><span>${NG.avatarSVG(r.hostAv, 16)} ${NG.t('hostTag', escapeHtml(r.hostName || '?'))}</span><span>${NG.t('rooms_people', r.count || 0, r.max || g.max)}</span><span>${g.anyLang ? NG.icon('globe', 14) : (r.lang === 'ja' ? '🇯🇵' : '🇰🇷')}</span></small></span><span class="code">${r.code}</span>`;
         row.addEventListener('click', () => goRoom(r.code, r.game));
         w.appendChild(row);
       }
@@ -358,7 +359,7 @@
   let infoGame = null;
   function openInfo(g) {
     infoGame = g; const solo = g.type === 'solo', L = NG.ui;
-    $('infoIc').innerHTML = NG.icon(g.icon, 48); $('infoName').textContent = g.name[L]; $('infoDesc').textContent = g.desc[L];
+    $('infoIc').innerHTML = NG.icon(g.icon, 64); $('infoIc').style.background = g.bg || ''; $('infoIc').classList.toggle('btm', g.anchor === 'bottom'); $('infoName').textContent = g.name[L]; $('infoDesc').textContent = g.desc[L];
     const any = solo || g.anyLang;
     $('infoMeta').innerHTML = `<span>${NG.icon('people', 12)}${solo ? NG.t('solo') : NG.t('people', g.min, g.max)}</span><span>⏱ ${g.info.time[L]}</span><span class="${any ? 'any' : 'same'}">${NG.icon('globe', 12)}${NG.t(any ? 'langAny' : 'langSame')}</span>` + (g.info.tip ? `<span>${g.info.tip[L]}</span>` : '');
     const ol = $('infoRules'); ol.innerHTML = ''; for (const r of g.info.rules[L]) ol.appendChild(NG.el('li', '', r));

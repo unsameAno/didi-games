@@ -54,7 +54,7 @@
 <body>
 <div class="top">
   <span id="logoSlot"></span>
-  <h1><i data-ic="who" data-size="18"></i><span data-t="gameName"></span></h1>
+  <h1><i data-ic="who" data-size="16"></i><span data-t="gameName"></span></h1>
   <span class="code-chip" id="codeChip"></span>
   <span class="pill" id="roundPill"></span>
   <span class="grow"></span>
@@ -342,7 +342,7 @@
 
     if (ph === 'lobby') {
       const list = room.playerList();
-      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="big-ic">${NG.icon('who', 56)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div></div>`);
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="big-ic">${NG.icon('who', 64)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div></div>`);
       const g = NG.el('div', 'grid');
       for (const p of list) { const b = NG.el('div', 'pbtn pxb static'); b.innerHTML = `${person(p.id, 36)}<span class="nm">${esc(room.nameOf(p.id))}</span>${p.id === room.hostId() ? `<span class="tag">${t('host')}</span>` : ''}`; g.appendChild(b); }
       view.appendChild(g);
