@@ -43,6 +43,11 @@
       info: { time: { ko: '약 10~20분', ja: '約10〜20分' }, rules: {
         ko: ['서로 다음 사람의 주제어를 정해 줘요. 내 주제어는 나만 못 봐요.', '내 차례에 질문을 하나 하면 친구들이 예 / 아니오 / 애매해로 답해요.', '먼저 맞힐수록 순위가 높아요. 정답은 띄어쓰기 없이, 오타는 오답!'],
         ja: ['次の人のお題をお互いに決めます。自分のお題は自分だけ見えません。', '自分の番に質問を1つすると、みんなが「はい／いいえ／微妙」で答えます。', '早く当てるほど順位が上。答えはスペースなし、打ち間違いは不正解！'] } } },
+    { id: 'mafia', type: 'multi', page: 'mafia.html', icon: 'moon', min: 4, max: 15, name: { ko: '마피아', ja: 'マフィア' },
+      desc: { ko: '낮에는 토론, 밤에는 암살. 숨은 마피아를 찾아라', ja: '昼は議論、夜は襲撃。隠れたマフィアを探せ' }, rank: { field: 'wins', label: { ko: '승리', ja: '勝利' } },
+      info: { time: { ko: '약 15~40분', ja: '約15〜40分' }, tip: { ko: '6~12명 추천', ja: '6〜12人がおすすめ' }, rules: {
+        ko: ['시작하면 각자 비밀 역할을 받아요. 방장이 역할 구성을 정해요.', '낮에는 토론하고 투표로 한 명을 처형, 밤에는 마피아와 능력자가 움직여요.', '마피아를 모두 찾으면 시민 승리, 마피아가 절반이 되면 마피아 승리!'],
+        ja: ['スタートすると秘密の役職が配られます。構成はホストが決めます。', '昼は議論して投票で1人を処刑、夜はマフィアと能力者が動きます。', 'マフィアを全員見つければ市民の勝ち、マフィアが半数になればマフィアの勝ち！'] } } },
     { id: 'react', type: 'solo',  page: 'react.html', icon: 'bolt', min: 1, max: 1, name: { ko: '반응속도 테스트', ja: '反射神経テスト' },
       desc: { ko: '초록불이 켜지면 바로 터치!', ja: '緑になったらすぐタップ！' }, rank: { field: 'avg', label: { ko: '평균 기록', ja: '平均記録' }, asc: true, unit: 'ms' },
       info: { time: { ko: '약 1분', ja: '約1分' }, rules: {
@@ -209,6 +214,9 @@
     play: ['kk......', 'kwkk....', 'kwwwkk..', 'kwwwwwk.', 'kwwwwwk.', 'kwwwkk..', 'kwkk....', 'kk......'],
     target: ['...kkkk...', '.kkrrrrkk.', '.krwwwwrk.', 'krwwrrwwrk', 'krwrrrrwrk', 'krwrrrrwrk', 'krwwrrwwrk', '.krwwwwrk.', '.kkrrrrkk.', '...kkkk...'],
     search: ['..kkkk....', '.kwwwwk...', 'kwggggwk..', 'kwggggwk..', 'kwggggwk..', 'kwggggwk..', '.kwwwwkk..', '..kkkkbbk.', '......kbbk', '.......kk.'],
+    moon: ['....kkkk..', '..kkyyyk..', '.kyyykk...', '.kyyk.....', 'kyyyk.....', 'kyyyk.....', '.kyyk.....', '.kyyykk...', '..kkyyyk..', '....kkkk..'],
+    sound: ['....kk....', '...kwk..k.', 'kkkwwk...k', 'kwwwwk.k.k', 'kwwwwk.k.k', 'kkkwwk...k', '...kwk..k.', '....kk....'],
+    note: ['...kkkkkk.', '...kwwwwk.', '...kwkkwk.', '...kwk.kk.', '...kwk....', '.kkkwk....', 'kwwwwk....', 'kwwwk.....', '.kkk......'],
     who: ['..kkkkkk..', '.kvvvvvvk.', 'kvvwwwwvvk', 'kvwvvvvwvk', 'kvvvvvwwvk', 'kvvvvwwvvk', 'kvvvvwvvvk', 'kvvvvvvvvk', 'kvvvvwvvvk', '.kvvvvvvk.', '..kkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],
     back: ['...kk.....', '..kwk.....', '.kwwkkkkk.', 'kwwwwwwwwk', '.kwwkkkkk.', '..kwk.....', '...kk.....'],
@@ -418,6 +426,15 @@
       if (cur[field] == null || value > cur[field]) { cur[field] = value; Object.assign(cur, extra || {}); }
       cur.name = NG.me.name; cur.av = NG.me.av; cur.updatedAt = Date.now(); return cur;
     }).then(r => ({ prev, now: r.snapshot.val() })).catch(() => null);
+  };
+  // 팀 게임 결과: players 모두 판수+1, winners에 든 사람만 승리+1
+  NG.recordTeam = (gameId, players, winners) => {
+    if (!db) return;
+    for (const uid of players || []) db.ref(`stats/${gameId}/${uid}`).transaction(cur => {
+      cur = cur || { plays: 0, wins: 0, score: 0 }; cur.plays = (cur.plays || 0) + 1; cur.wins = cur.wins || 0; cur.score = cur.score || 0;
+      if ((winners || []).includes(uid)) { cur.wins = (cur.wins || 0) + 1; cur.score = (cur.score || 0) + 10; }
+      cur.updatedAt = Date.now(); return cur;
+    }).catch(() => {});
   };
   NG.touchProfile = (gameId) => { if (db && NG.me) db.ref(`stats/${gameId}/${NG.me.uid}`).update({ name: NG.me.name, av: NG.me.av }).catch(() => {}); };
   NG.leaderboard = async (gameId, field = 'wins', limit = 20, asc = false) => {

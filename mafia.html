@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>마피아 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 마피아 — 4~15명. 모바일 우선: 위(단계·발표) / 가운데(참가자 3열·채팅) / 아래 고정(버튼·입력) */
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; transition: background-color 1.2s; }
+  body.night { background-color: #07060f; }
+  .head { position: sticky; top: 0; z-index: 6; background: inherit; background-color: var(--bg); padding-bottom: 12px; transition: background-color 1.2s; }
+  body.night .head, body.night .acts { background-color: #07060f; }
+  .head .top { position: static; gap: 6px; }
+  .top h1 { font-size: 15px; }
+  .top button { min-height: 36px; padding: 6px 10px; font-size: 12px; margin: 0; display: inline-flex; align-items: center; }
+  .top button .pxi { margin: 0; }
+  .top button.off { opacity: .4; }
+  .col { width: 100%; max-width: 560px; margin: 0 auto; padding: 0 15px; }
+  #pin { margin-top: 15px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; gap: 18px; padding-top: 6px; padding-bottom: 14px; }
+  .qcard { text-align: center; padding: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .qcard .lbl { font-size: 11px; color: var(--muted); font-weight: 700; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .qcard .q { font-size: clamp(18px, 5.4vw, 24px); font-weight: 700; color: var(--yellow); line-height: 1.45; word-break: keep-all; text-shadow: 2px 2px 0 var(--ink); }
+  .qcard .sub { font-size: 12px; color: var(--muted); line-height: 1.7; word-break: keep-all; }
+  .qcard .ann { font-size: 15px; font-weight: 700; line-height: 1.6; color: var(--text); word-break: keep-all; animation: pop .35s steps(4) both; }
+  .qcard .ann.bad { color: #ff9fb0; } .qcard .ann.good { color: var(--mint); } .qcard .ann.news { color: var(--yellow); }
+  .qcard .priv { font-size: 12px; font-weight: 700; padding: 6px 10px; background: var(--ink); color: var(--mint); line-height: 1.6; word-break: keep-all; }
+  .tbar { width: 100%; height: 8px; background: var(--ink); position: relative; }
+  .tbar i { position: absolute; inset: 0 auto 0 0; background: var(--mint); transition: width 1s linear; }
+  .tbar.hot i { background: var(--pink); }
+  body.night .qcard { background: #0e0c1c; }
+  .eyes .q { color: #c9bbff; font-size: clamp(20px, 6vw, 28px); }
+  .big-ic { animation: bob 1.2s steps(2) infinite; }
+  /* 참가자 3열 */
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 12px; padding: 3px; }
+  .pc { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px 6px; background: var(--panel); min-height: 0; margin: 0; font-size: 12px; --dc: var(--ink); --dp: 4px; }
+  button.pc { --in: 0 0 0 0 transparent; --bc: var(--line); }
+  .pc .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--text); font-size: 12px; }
+  .pc .rl { font-size: 10px; padding: 1px 5px; background: var(--ink); color: var(--muted); font-weight: 700; max-width: 100%; overflow: hidden; white-space: nowrap; }
+  .pc .rl.maf { background: var(--pink); color: #fff; } .pc .rl.cit { background: #123d33; color: var(--mint); } .pc .rl.me { background: var(--purple); color: #fff; } .pc .rl.jok { background: var(--yellow); color: #1a1426; }
+  .pc.dead { opacity: .4; } .pc.dead .px { filter: grayscale(1); }
+  .pc.sel { background: #3b3160; --bc: var(--yellow); }
+  .pc.me { --bc: var(--purple); }
+  .pc.can { cursor: pointer; }
+  .pc:disabled { opacity: 1; cursor: default; } .pc.dead:disabled { opacity: .4; }
+  .pc .mk { position: absolute; top: -6px; right: -4px; display: flex; gap: 1px; }
+  .pc .mk .px { box-shadow: 0 0 0 2px var(--pink); background: var(--ink); }
+  .pc .vt { position: absolute; top: -7px; left: -4px; font-size: 10px; font-weight: 700; background: var(--yellow); color: #1a1426; padding: 1px 5px; }
+  /* 설정 */
+  .setbox { display: flex; flex-direction: column; gap: 14px; padding: 14px; }
+  .setbox h4 { font-size: 12px; color: var(--muted); }
+  .srow { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 14px; font-weight: 700; }
+  .srow small { display: block; font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 2px; line-height: 1.4; }
+  .step { display: flex; align-items: center; gap: 10px; }
+  .step button, .sw, .seg button { min-height: 36px; padding: 4px 12px; font-size: 13px; margin: 0; }
+  .step b { min-width: 22px; text-align: center; font-size: 16px; }
+  .sw { min-width: 58px; background: var(--ink); color: var(--muted); } .sw.on { background: var(--mint); color: #0b2a20; }
+  .seg { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; } .seg button.on { background: var(--yellow); color: #1a1426; }
+  .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; padding: 3px; }
+  .roles button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; text-align: left; font-size: 13px; min-height: 0; margin: 0; background: var(--ink); color: var(--muted); }
+  .roles button small { font-size: 10px; font-weight: 400; line-height: 1.4; word-break: keep-all; }
+  .roles button.on { background: #2f2752; color: var(--text); --bc: var(--mint); }
+  .sum { font-size: 12px; line-height: 1.7; color: var(--text); word-break: keep-all; }
+  .warnline { font-size: 12px; color: #ff9fb0; line-height: 1.6; }
+  .res { width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+  .res div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 12px; padding: 5px 8px; background: var(--panel2); align-items: center; }
+  .res div b { color: var(--yellow); } .res div small { color: var(--muted); font-size: 10px; display: block; grid-column: 1 / -1; word-break: keep-all; }
+  .chatc { padding: 12px; } .chatc h3 { margin-bottom: 8px; } .chatc .log { height: 140px; flex: none; }
+  .msg.maf { background: #3a1626; --bc: var(--pink); color: #ffb3c4; }
+  .acts { position: sticky; bottom: 0; z-index: 5; background-color: var(--bg); padding-top: 10px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; transition: background-color 1.2s; }
+  #btns { display: flex; gap: 12px; padding: 0 3px; } #btns:empty { display: none; }
+  #btns button { flex: 1; font-size: 15px; padding: 10px 8px; margin: 0; }
+  #btns .msg2 { flex: 1; text-align: center; color: var(--muted); font-size: 12px; padding: 4px; line-height: 1.6; }
+  .row { display: flex; gap: 12px; padding: 3px; }
+  .row input { flex: 1; min-width: 0; padding: 12px; font-size: 16px; background: var(--ink); outline: none; border: 0; box-shadow: 0 -3px 0 0 var(--line), 0 3px 0 0 var(--line), -3px 0 0 0 var(--line), 3px 0 0 0 var(--line); }
+  .row input:disabled { opacity: .45; }
+  .row button { flex-shrink: 0; white-space: nowrap; margin: 0; }
+  body.eyes #stat, body.eyes .chatc, body.eyes #form, body.eyes #view { display: none; }
+  .modal { position: fixed; inset: 0; background: rgba(7,5,14,.86); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 40; }
+  .modal .box { width: 100%; max-width: 340px; text-align: center; padding: 22px 18px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .rolename { font-size: 28px; font-weight: 700; color: var(--yellow); text-shadow: 3px 3px 0 var(--ink); }
+  .rolename.maf { color: var(--pink); }
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="top">
+    <span id="logoSlot"></span>
+    <h1><i data-ic="moon" data-size="18"></i><span data-t="gameName"></span></h1>
+    <span class="code-chip" id="codeChip"></span>
+    <span class="grow"></span>
+    <button class="btn-yellow hidden" id="roleBtn" data-t="myRole"></button>
+    <button class="btn-ghost" id="voiceBtn" title="voice"><i data-ic="sound" data-size="16"></i></button>
+    <button class="btn-ghost" id="bgmBtn" title="bgm"><i data-ic="note" data-size="16"></i></button>
+    <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
+  </div>
+  <div class="col" id="pin"></div>
+</div>
+<div class="col wrap">
+  <div id="view"></div>
+  <div id="stat"></div>
+  <div class="card chatc"><h3><i data-ic="chat" data-size="14"></i><span id="chatLbl"></span></h3><div class="log" id="log"></div></div>
+</div>
+<div class="col acts" id="acts">
+  <div id="btns"></div>
+  <form class="row" id="form"><input id="inp" maxlength="40" autocomplete="off" enterkeyhint="send"><button class="btn-sub" id="sendBtn" type="submit" data-t="send"></button></form>
+</div>
+<div class="modal hidden" id="roleModal"><div class="card box" id="roleBox"></div></div>
+<canvas id="confetti"></canvas>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  const FAST = /[?&]fast/.test(location.search) ? 0.1 : 1;            // 개발용: 주소에 ?fast 를 붙이면 모든 시간이 1/10
+  const sec = (n) => Math.max(2, Math.round(n * FAST));
+  const GAME = 'mafia', MIN = 4;
+  const EXTRA = ['medium', 'soldier', 'politician', 'reporter', 'lover', 'spy', 'madam', 'joker'];
+  const NIGHT_ROLES = ['mafia', 'doctor', 'police', 'spy', 'reporter'];   // 밤에 대상을 고르는 역할 (순서대로 방식에서 부르는 순서)
+  const MAF_TEAM = ['mafia', 'spy', 'madam'];
+
+  const RN = {
+    ko: { mafia: '마피아', doctor: '의사', police: '경찰', medium: '영매', soldier: '군인', politician: '정치인', reporter: '기자', lover: '연인', spy: '스파이', madam: '마담', joker: '조커', citizen: '시민' },
+    ja: { mafia: 'マフィア', doctor: '医者', police: '警察', medium: '霊媒師', soldier: '軍人', politician: '政治家', reporter: '記者', lover: '恋人', spy: 'スパイ', madam: 'マダム', joker: 'ジョーカー', citizen: '市民' } };
+  const RD = {
+    ko: { mafia: '밤마다 한 명을 골라 탈락시켜요. 다른 마피아와 상의해서 정해요.', doctor: '밤마다 한 명을 지켜서 마피아의 공격을 막아요. 나 자신도 지킬 수 있어요.', police: '밤마다 한 명을 조사해 마피아인지 알아내요.', medium: '탈락한 사람의 역할을 혼자만 볼 수 있어요.',
+      soldier: '마피아의 공격을 한 번 버텨요.', politician: '투표가 2표로 계산되고, 투표로는 처형되지 않아요.', reporter: '게임 중 한 번(둘째 밤부터), 한 명의 역할을 다음 아침에 모두에게 공개해요.', lover: '다른 연인과 서로를 알아요. 한 명이 마피아에게 공격받으면 다른 한 명이 대신 탈락해요(한 번).',
+      spy: '마피아 편. 밤마다 한 명의 역할을 알아내요. 마피아를 찾으면 접선해서 서로 알게 돼요.', madam: '마피아 편. 낮 투표에서 내가 찍은 사람은 그날 밤 능력을 못 써요. 마피아를 찍으면 접선해요.', joker: '낮 투표로 처형당하면 혼자 승리해요. 밤에 탈락하면 그냥 탈락이에요.', citizen: '특별한 능력은 없어요. 토론과 투표로 마피아를 찾아내요.' },
+    ja: { mafia: '毎晩1人を選んで脱落させます。他のマフィアと相談して決めます。', doctor: '毎晩1人を守って、マフィアの襲撃を防ぎます。自分も守れます。', police: '毎晩1人を調べて、マフィアかどうかを知ります。', medium: '脱落した人の役職を自分だけ見られます。',
+      soldier: 'マフィアの襲撃を1回だけ耐えます。', politician: '投票が2票として数えられ、投票では処刑されません。', reporter: 'ゲーム中に1回（2日目の夜から）、1人の役職を翌朝みんなに公開します。', lover: 'もう1人の恋人とお互いを知っています。片方が襲われると、もう片方が代わりに脱落します（1回）。',
+      spy: 'マフィア側。毎晩1人の役職を調べます。マフィアを見つけると合流します。', madam: 'マフィア側。昼の投票で自分が入れた人は、その夜能力を使えません。マフィアに入れると合流します。', joker: '昼の投票で処刑されると1人勝ち。夜に脱落するとただの脱落です。', citizen: '特別な能力はありません。議論と投票でマフィアを見つけます。' } };
+  // 음성 안내용 (조사 포함)
+  const SAY = {
+    ko: { night: '밤이 되었습니다. 모두 눈을 감아 주세요.', nightSim: '밤이 되었습니다. 능력이 있는 사람은 대상을 골라 주세요.', close: (r) => `${r} 눈을 감아 주세요.`, morning: '아침이 밝았습니다. 모두 눈을 떠 주세요.', day: '토론을 시작해 주세요.', vote: '투표 시간입니다. 처형할 사람을 골라 주세요.', test: '소리 테스트입니다. 잘 들리나요?',
+      subj: { mafia: '마피아는', doctor: '의사는', police: '경찰은', spy: '스파이는', reporter: '기자는' },
+      open: { mafia: '눈을 뜨고, 탈락시킬 사람을 지목해 주세요.', doctor: '눈을 뜨고, 지킬 사람을 지목해 주세요.', police: '눈을 뜨고, 조사할 사람을 지목해 주세요.', spy: '눈을 뜨고, 정체를 알아낼 사람을 지목해 주세요.', reporter: '눈을 뜨고, 취재할 사람을 지목해 주세요.' } },
+    ja: { night: '夜になりました。みなさん目を閉じてください。', nightSim: '夜になりました。能力のある人は相手を選んでください。', close: (r) => `${r}目を閉じてください。`, morning: '朝になりました。みなさん目を開けてください。', day: '議論を始めてください。', vote: '投票の時間です。処刑する人を選んでください。', test: '音のテストです。聞こえますか？',
+      subj: { mafia: 'マフィアは', doctor: '医者は', police: '警察は', spy: 'スパイは', reporter: '記者は' },
+      open: { mafia: '目を開けて、襲う人を選んでください。', doctor: '目を開けて、守る人を選んでください。', police: '目を開けて、調べる人を選んでください。', spy: '目を開けて、正体を知りたい人を選んでください。', reporter: '目を開けて、取材する人を選んでください。' } } };
+  NG.addT({
+    ko: { gameName: '마피아', myRole: '내 역할', chatAll: '채팅', chatMaf: '마피아 비밀 채팅', chatPh: '채팅', chatMafPh: '마피아끼리만 보여요', chatOff: '지금은 채팅할 수 없어요',
+      waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요.`, players: (n) => `참가자 ${n}명`, need: (n) => `${n}명부터 시작할 수 있어요`, startBtn: '게임 시작', waitHost: '방장이 시작하기를 기다리는 중…',
+      setTitle: '역할 구성 (방장만 바꿀 수 있어요)', mafN: '마피아 수', extraT: '추가 역할 (직접 켜기)', talkT: '토론 시간', nightT: '밤 진행', nSeq: '순서대로', nSim: '동시에', nSeqD: '모여서 할 때 · 음성이 역할을 하나씩 불러요', nSimD: '떨어져서 할 때 · 모두 한꺼번에 60초', revealT: '탈락자 역할 공개', on: '켜짐', off: '꺼짐', min: (m) => `${m}분`, reco: '추천 구성으로', soundTest: '소리 테스트',
+      sumT: '이번 판 구성', cnt: (r, n) => n > 1 ? `${r} ${n}` : r, errMany: (a, b) => `역할이 ${a}개인데 참가자는 ${b}명이에요. 역할을 줄여 주세요.`, errMaf: '마피아 편이 너무 많아요. 전체의 절반보다 적어야 해요.', tipBig: '12명 이상이면 추가 역할을 켜는 걸 추천해요.', medNote: '영매가 있으면 탈락자 역할은 영매만 볼 수 있어요.',
+      roleTitle: '당신의 역할은', teamMaf: '마피아 편', teamCit: '시민 편', teamJok: '혼자', mates: (n) => `같은 편: ${n}`, loverIs: (n) => `연인: ${n}`, hideTip: '다른 사람이 화면을 보지 못하게 하세요. 누르면 닫혀요.', roleSoon: (s) => `${s}초 뒤 낮이 시작돼요`,
+      dayT: (d) => `${d}일째 낮`, daySub: '토론해서 마피아를 찾아내세요', skipTalk: '토론 끝내고 투표', voteT: (d) => `${d}일째 투표`, voteSub: '처형할 사람을 고르고 투표하세요', voteBtn: '투표하기', pickFirst: '한 명을 골라 주세요', voted: (a, b) => `투표 완료 (${a}/${b})`, resT: '투표 결과', votesN: (n) => `${n}표`, votedBy: (n) => `투표: ${n}`,
+      nightT2: (d) => `${d}일째 밤`, eyes: '밤이 되었습니다.<br>눈을 감아 주세요', eyesSub: '아침이 되면 진동으로 알려 드려요', pickMaf: '탈락시킬 사람을 골라 주세요', pickDoc: '지킬 사람을 골라 주세요', pickPol: '조사할 사람을 골라 주세요', pickSpy: '정체를 알아낼 사람을 골라 주세요', pickRep: '취재할 사람을 골라 주세요 (한 번만)',
+      mafWatch: '마피아가 대상을 고르는 중…', nowTarget: (n, c) => `지금 대상: ${n} (${c}명 선택)`, noTarget: '아직 아무도 고르지 않았어요', picked: (n) => `선택: ${n}`, stepOf: (r) => `${r} 차례`, specNight: '밤이 진행 중이에요', morningT: '아침이 밝았습니다',
+      aSaved: '의사가 공격당한 시민을 구출했습니다!', aKill: (n) => `지난밤, ${n}님이 마피아에게 당했습니다…`, aSoldier: '군인이 마피아의 공격을 버텨 냈습니다!', aLover: (n) => `${n}님이 연인을 지키고 대신 쓰러졌습니다…`, aQuiet: '조용한 밤이 지나갔습니다.', aReport: (n, r) => `속보! 기자의 취재 결과, ${n}님의 정체는 ${r}입니다!`,
+      aExec: (n) => `투표 결과, ${n}님이 처형되었습니다.`, aTie: '표가 갈려 아무도 처형되지 않았습니다.', aPolit: '정치인은 투표로 처형할 수 없습니다!', aNoVote: '아무도 투표하지 않아 처형이 없습니다.', aGone: (n) => `${n}님이 게임을 떠났습니다.`, aRole: (r) => ` (역할: ${r})`,
+      iPolY: (n) => `조사 결과: ${n}님은 마피아입니다!`, iPolN: (n) => `조사 결과: ${n}님은 마피아가 아닙니다.`, iSpy: (n, r) => `${n}님의 정체는 ${r}입니다.`, iContact: '마피아와 접선했습니다! 이제 서로를 알 수 있어요.', iBlocked: '마담에게 유혹당해 지난밤 능력을 쓸 수 없었어요.',
+      winCit: '마피아를 모두 찾아냈습니다. 시민의 승리!', winMaf: '도시는 마피아의 손에 넘어갔습니다… 마피아의 승리!', winJok: (n) => `속았습니다! ${n}님은 조커였습니다. 조커의 단독 승리!`, youWin: '승리!', youLose: '패배…', againBtn: '한 판 더', toLobby: '로비로',
+      dead: '탈락', youTag: '나', spec: '구경 중이에요. 모든 역할이 보여요.', deadSpec: '탈락했어요. 이제 모든 역할이 보여요. 채팅은 할 수 없어요.', polNo: '아님', sndOnV: '음성 안내 켜짐', sndOffV: '음성 안내 꺼짐', sndOnB: '배경음 켜짐', sndOffB: '배경음 꺼짐' },
+    ja: { gameName: 'マフィア', myRole: '自分の役職', chatAll: 'チャット', chatMaf: 'マフィア秘密チャット', chatPh: 'チャット', chatMafPh: 'マフィアだけに見えます', chatOff: '今はチャットできません',
+      waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。`, players: (n) => `参加者 ${n}人`, need: (n) => `${n}人から始められます`, startBtn: 'ゲーム開始', waitHost: 'ホストの開始を待っています…',
+      setTitle: '役職の構成（ホストだけ変更できます）', mafN: 'マフィアの人数', extraT: '追加の役職（手動でオン）', talkT: '議論の時間', nightT: '夜の進行', nSeq: '順番に', nSim: '同時に', nSeqD: '集まって遊ぶとき・音声が役職を順番に呼びます', nSimD: '離れて遊ぶとき・全員同時に60秒', revealT: '脱落者の役職を公開', on: 'オン', off: 'オフ', min: (m) => `${m}分`, reco: 'おすすめ構成に', soundTest: '音のテスト',
+      sumT: '今回の構成', cnt: (r, n) => n > 1 ? `${r} ${n}` : r, errMany: (a, b) => `役職が${a}個ですが、参加者は${b}人です。役職を減らしてください。`, errMaf: 'マフィア側が多すぎます。全体の半分より少なくしてください。', tipBig: '12人以上なら追加の役職をオンにするのがおすすめです。', medNote: '霊媒師がいると、脱落者の役職は霊媒師だけが見られます。',
+      roleTitle: 'あなたの役職は', teamMaf: 'マフィア側', teamCit: '市民側', teamJok: 'ひとり', mates: (n) => `仲間: ${n}`, loverIs: (n) => `恋人: ${n}`, hideTip: '他の人に画面を見られないように。タップで閉じます。', roleSoon: (s) => `${s}秒後に昼が始まります`,
+      dayT: (d) => `${d}日目の昼`, daySub: '議論してマフィアを見つけよう', skipTalk: '議論を終えて投票へ', voteT: (d) => `${d}日目の投票`, voteSub: '処刑する人を選んで投票してください', voteBtn: '投票する', pickFirst: '1人選んでください', voted: (a, b) => `投票完了 (${a}/${b})`, resT: '投票結果', votesN: (n) => `${n}票`, votedBy: (n) => `投票: ${n}`,
+      nightT2: (d) => `${d}日目の夜`, eyes: '夜になりました。<br>目を閉じてください', eyesSub: '朝になったら振動でお知らせします', pickMaf: '襲う人を選んでください', pickDoc: '守る人を選んでください', pickPol: '調べる人を選んでください', pickSpy: '正体を知りたい人を選んでください', pickRep: '取材する人を選んでください（1回だけ）',
+      mafWatch: 'マフィアが相手を選んでいます…', nowTarget: (n, c) => `現在の標的: ${n}（${c}人が選択）`, noTarget: 'まだ誰も選んでいません', picked: (n) => `選択: ${n}`, stepOf: (r) => `${r}の番`, specNight: '夜が進行中です', morningT: '朝になりました',
+      aSaved: '医者が襲われた市民を救い出しました！', aKill: (n) => `昨夜、${n}さんがマフィアに襲われました…`, aSoldier: '軍人がマフィアの襲撃を耐え抜きました！', aLover: (n) => `${n}さんが恋人をかばって倒れました…`, aQuiet: '静かな夜が過ぎました。', aReport: (n, r) => `速報！記者の取材によると、${n}さんの正体は${r}です！`,
+      aExec: (n) => `投票の結果、${n}さんが処刑されました。`, aTie: '票が割れて、誰も処刑されませんでした。', aPolit: '政治家は投票では処刑できません！', aNoVote: '誰も投票しなかったので、処刑はありません。', aGone: (n) => `${n}さんがゲームを離れました。`, aRole: (r) => ` 役職は${r}でした。`,
+      iPolY: (n) => `調査結果: ${n}さんはマフィアです！`, iPolN: (n) => `調査結果: ${n}さんはマフィアではありません。`, iSpy: (n, r) => `${n}さんの正体は${r}です。`, iContact: 'マフィアと合流しました！お互いが分かるようになります。', iBlocked: 'マダムに誘惑されて、昨夜は能力を使えませんでした。',
+      winCit: 'マフィアを全員見つけました。市民の勝利！', winMaf: '街はマフィアの手に落ちました… マフィアの勝利！', winJok: (n) => `だまされました！${n}さんはジョーカーでした。ジョーカーの単独勝利！`, youWin: '勝利！', youLose: '敗北…', againBtn: 'もう一回', toLobby: 'ロビーへ',
+      dead: '脱落', youTag: '自分', spec: '見学中です。すべての役職が見えます。', deadSpec: '脱落しました。すべての役職が見えます。チャットはできません。', polNo: '白', sndOnV: '音声案内オン', sndOffV: '音声案内オフ', sndOnB: 'BGMオン', sndOffB: 'BGMオフ' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t, L = () => NG.ui === 'ja' ? 'ja' : 'ko';
+  const rn = (r) => RN[L()][r] || r;
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const arr = (x) => Array.isArray(x) ? x : Object.values(x || {});
+  document.title = `${t('gameName')} · DIDI Games`;
+
+  // ═════════ 소리: 음성 안내(브라우저 음성 읽기) + 배경음(Web Audio로 직접 합성, 음원 파일 없음) ═════════
+  const Snd = (() => {
+    let ctx = null, master = null, bgm = null, mood = '', timer = null, drone = [], beat = 0;
+    const pref = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+    const on = (k) => { const p = pref(k); return p == null ? !!room.isHost : p === '1'; };       // 기본: 방장 폰만 켜짐
+    const set = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch {} };
+    const init = () => { if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; } try { const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); bgm = ctx.createGain(); bgm.gain.value = 0; bgm.connect(master); } catch { ctx = null; } };
+    const note = (f, at, dur, type = 'triangle', vol = 0.2, dest = null) => { if (!ctx) return; const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(vol, at + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, at + dur); o.connect(g); g.connect(dest || bgm); o.start(at); o.stop(at + dur + 0.05); };
+    const stopDrone = () => { for (const o of drone) { try { o.g.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 1.5); o.o.stop(ctx.currentTime + 1.6); } catch {} } drone = []; };
+    const DAY = [523.25, 659.25, 783.99, 659.25, 587.33, 783.99, 880, 783.99], DAYB = [130.81, 130.81, 174.61, 196];
+    const tick = () => {
+      if (!ctx || !mood) return; const now = ctx.currentTime + 0.05;
+      if (mood === 'day') { note(DAY[beat % 8], now, 0.35, 'triangle', 0.12); if (beat % 2 === 0) note(DAYB[(beat / 2 | 0) % 4], now, 0.6, 'sine', 0.16); timer = setTimeout(tick, 340); }
+      else if (mood === 'vote') { note(55, now, 0.25, 'sine', 0.5); note(110, now, 0.08, 'square', 0.05); if (beat % 4 === 3) note(82.4, now + 0.18, 0.2, 'sine', 0.3); timer = setTimeout(tick, 520); }
+      else if (mood === 'night') { const hi = [311.13, 369.99, 466.16, 277.18, 415.3][Math.floor(Math.random() * 5)]; note(hi, now, 3.5, 'sine', 0.06); note(hi * 1.06, now + 0.4, 3, 'sine', 0.03); timer = setTimeout(tick, 3500 + Math.random() * 3500); }
+      beat++;
+    };
+    const setMood = (m) => {
+      if (!on('mf-bgm')) m = '';
+      if (m === mood) return; mood = m; clearTimeout(timer); beat = 0; if (!ctx) return;
+      stopDrone(); bgm.gain.cancelScheduledValues(ctx.currentTime); bgm.gain.linearRampToValueAtTime(m ? 0.7 : 0.0001, ctx.currentTime + 1.5);
+      if (m === 'night') for (const f of [55, 58.27, 82.41]) { const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = 220; g.gain.value = 0.0001; g.gain.linearRampToValueAtTime(0.09, ctx.currentTime + 2); o.connect(lp); lp.connect(g); g.connect(bgm); o.start(); drone.push({ o, g }); }
+      if (m) timer = setTimeout(tick, 300);
+    };
+    const sfx = (kind) => {
+      if (!ctx || !on('mf-bgm')) return; const n = ctx.currentTime + 0.05, d = master;
+      if (kind === 'bad') { note(196, n, 0.5, 'sawtooth', 0.12, d); note(146.8, n + 0.35, 0.9, 'sawtooth', 0.12, d); note(98, n + 0.8, 1.4, 'sine', 0.3, d); }
+      else if (kind === 'good') [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, n + i * 0.12, 0.4, 'triangle', 0.18, d));
+      else if (kind === 'win') [523.25, 523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((f, i) => note(f, n + i * 0.16, 0.35, 'square', 0.1, d));
+      else if (kind === 'lose') [220, 207.65, 196, 146.83].forEach((f, i) => note(f, n + i * 0.4, 0.9, 'sawtooth', 0.1, d));
+      else if (kind === 'joker') [659.25, 830.6, 622.25, 987.77, 587.33, 1174.7].forEach((f, i) => note(f, n + i * 0.11, 0.2, 'square', 0.1, d));
+    };
+    const speak = (text) => {
+      if (!on('mf-voice') || !window.speechSynthesis || !text) return;
+      try { const u = new SpeechSynthesisUtterance(text); u.lang = NG.ui === 'ja' ? 'ja-JP' : 'ko-KR'; u.rate = 0.95; u.pitch = 0.8;
+        u.onstart = () => { if (ctx && mood) bgm.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.2); }; u.onend = () => { if (ctx && mood) bgm.gain.linearRampToValueAtTime(0.7, ctx.currentTime + 0.5); };
+        speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {}
+    };
+    document.addEventListener('pointerdown', init, { passive: true });
+    return { on, set, init, setMood, sfx, speak, stop: () => { setMood(''); try { speechSynthesis.cancel(); } catch {} } };
+  })();
+
+  // ═════════ 방·상태 ═════════
+  const code = NG.codeFromHash() || NG.genCode();
+  try { history.replaceState(null, '', '#' + code.toLowerCase() + (FAST < 1 ? '' : '')); } catch {}
+  const room = new NG.Room(GAME, code);
+  const reco = (n) => ({ maf: n <= 5 ? 1 : n <= 8 ? 2 : n <= 12 ? 3 : 4, doc: n >= 5, pol: true });
+  const defCfg = () => ({ auto: true, ...reco(MIN), extra: {}, talk: 180, night: 'seq', reveal: true });
+  // state(방장이 관리). 역할 정보도 여기에 들어 있고, 화면에서만 가린다(친구끼리 하는 게임이라는 전제).
+  const fresh = () => ({ phase: 'lobby', gid: 0, day: 0, cfg: defCfg(), roles: {}, order: [], alive: [], lovers: [], used: {}, contact: {}, seduced: '', step: 0, steps: [], timeLeft: 0, ann: { n: 0, items: [] }, res: null, seen: {}, pub: {}, info: {}, winner: '', wuid: '', next: '' });
+  let state = fresh();
+  let nact = {}, votes = {}, sel = null, myVoteKey = '', keys = {}, lastAnn = 0, lastCue = '', goneCnt = {}, showRole = false, firstState = true;
+  const me = () => NG.me.uid;
+  const cfg = () => ({ ...defCfg(), ...(state.cfg || {}), extra: { ...((state.cfg || {}).extra || {}) } });
+  const order = () => arr(state.order), alive = () => arr(state.alive);
+  const roleOf = (id) => (state.roles || {})[id] || '';
+  const isAlive = (id) => alive().includes(id);
+  const inGame = () => order().includes(me());
+  const dkey = (st = state) => `${st.gid}_${st.day}`;
+  const person = (id, size) => NG.avatarSVG(room.avOf(id), size);
+  const mafKnown = (id) => roleOf(id) === 'mafia' || (MAF_TEAM.includes(roleOf(id)) && (state.contact || {})[id]);
+  const curStep = () => arr(state.steps)[state.step || 0] || '';
+  const picksOf = (st = state) => nact[dkey(st)] || {};
+  const pickOf = (id, st = state) => { const p = picksOf(st)[id]; return p ? p.t : null; };
+  const cfgCount = (c) => (c.maf || 0) + (c.doc ? 1 : 0) + (c.pol ? 1 : 0) + EXTRA.reduce((a, r) => a + (c.extra[r] ? (r === 'lover' ? 2 : 1) : 0), 0);
+  const cfgErr = (c, n) => n < MIN ? t('need', MIN) : cfgCount(c) > n ? t('errMany', cfgCount(c), n) : ((c.maf || 0) + (c.extra.spy ? 1 : 0) + (c.extra.madam ? 1 : 0)) * 2 >= n ? t('errMaf') : '';
+  const cfgSum = (c, n) => { const parts = [t('cnt', rn('mafia'), c.maf)]; if (c.doc) parts.push(rn('doctor')); if (c.pol) parts.push(rn('police')); for (const r of EXTRA) if (c.extra[r]) parts.push(t('cnt', rn(r), r === 'lover' ? 2 : 1)); const cz = n - cfgCount(c); if (cz > 0) parts.push(t('cnt', rn('citizen'), cz)); return parts.join(' · '); };
+
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); $('codeChip').textContent = code; NG.bindCodeChip($('codeChip'), code);
+  const leave = async () => { Snd.stop(); try { await room.leave(); } catch {} location.href = 'index.html'; };
+  NG.bindLogo(document, () => { Snd.stop(); return room.leave(); });
+  $('leaveBtn').addEventListener('click', leave);
+  NG.touchProfile(GAME);
+  const syncSndBtns = () => { $('voiceBtn').classList.toggle('off', !Snd.on('mf-voice')); $('bgmBtn').classList.toggle('off', !Snd.on('mf-bgm')); };
+  $('voiceBtn').addEventListener('click', () => { const v = !Snd.on('mf-voice'); Snd.set('mf-voice', v); syncSndBtns(); NG.addMsg('sys', '', t(v ? 'sndOnV' : 'sndOffV')); if (!v) try { speechSynthesis.cancel(); } catch {} });
+  $('bgmBtn').addEventListener('click', () => { const v = !Snd.on('mf-bgm'); Snd.set('mf-bgm', v); Snd.init(); syncSndBtns(); NG.addMsg('sys', '', t(v ? 'sndOnB' : 'sndOffB')); Snd.setMood(moodOf()); });
+  $('roleBtn').addEventListener('click', () => { showRole = true; renderRole(); });
+  $('roleModal').addEventListener('click', () => { showRole = false; renderRole(); });
+
+  // ═════════ 방장 진행 ═════════
+  const push = (patch) => { state = { ...state, ...patch }; room.pushState(state); };
+  const announce = (st, items) => ({ n: ((st.ann && st.ann.n) || 0) + 1, items });
+  function setCfg(patch, manual = true) { if (!room.isHost || state.phase !== 'lobby') return; const c = { ...cfg(), ...patch }; if (manual) c.auto = false; if (c.extra.medium) c.reveal = false; push({ cfg: c }); }
+  function winCheck(roles, al) {
+    const maf = al.filter(id => roles[id] === 'mafia').length, team = al.filter(id => MAF_TEAM.includes(roles[id])).length;
+    if (maf === 0) return 'cit'; if (team >= al.length - team) return 'maf'; return '';
+  }
+  function startGame() {
+    const ids = room.active().map(p => p.id), c = cfg(); if (!room.isHost || cfgErr(c, ids.length)) return;
+    const list = []; for (let i = 0; i < c.maf; i++) list.push('mafia'); if (c.doc) list.push('doctor'); if (c.pol) list.push('police');
+    for (const r of EXTRA) if (c.extra[r]) { list.push(r); if (r === 'lover') list.push(r); }
+    while (list.length < ids.length) list.push('citizen');
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+    const roles = {}; ids.forEach((id, i) => roles[id] = list[i]);
+    for (const p of ['nact', 'vote', 'mchat']) room.ref.child(p).remove().catch(() => {});
+    push({ ...fresh(), lang: state.lang || NG.ui, langSet: true, cfg: c, phase: 'role', gid: Date.now() % 100000000, day: 1, roles, order: ids, alive: ids, lovers: ids.filter(id => roles[id] === 'lover'), timeLeft: sec(10) });
+  }
+  const toDay = (st) => push({ ...st, phase: 'day', timeLeft: sec(cfg().talk), seduced: st.seduced || '', res: null });
+  const toVote = (st) => push({ ...st, phase: 'vote', timeLeft: sec(40) });
+  function resolveVote(st) {
+    const v = votes[dkey(st)] || {}, al = arr(st.alive), roles = st.roles || {}, c = cfg();
+    const tally = {}, who = {}; for (const id of al) { const tg = v[id]; if (tg && al.includes(tg)) { tally[tg] = (tally[tg] || 0) + (roles[id] === 'politician' ? 2 : 1); who[id] = tg; } }
+    const max = Math.max(0, ...Object.values(tally)), tops = Object.keys(tally).filter(id => tally[id] === max);
+    let al2 = al, items = [], winner = '', wuid = '', contact = { ...(st.contact || {}) }, seduced = '', info = { ...(st.info || {}) };
+    if (!max) items.push({ type: 'novote' }); else if (tops.length > 1) items.push({ type: 'tie' });
+    else if (roles[tops[0]] === 'politician') items.push({ type: 'polit', uid: tops[0] });
+    else { al2 = al.filter(id => id !== tops[0]); items.push({ type: 'exec', uid: tops[0], role: c.reveal ? roles[tops[0]] : '' }); if (roles[tops[0]] === 'joker') { winner = 'joker'; wuid = tops[0]; } }
+    const madam = al2.find(id => roles[id] === 'madam');
+    if (madam && who[madam] && al2.includes(who[madam])) { if (roles[who[madam]] === 'mafia') { if (!contact[madam]) { contact[madam] = true; info[madam] = { type: 'contact', d: st.day }; } } else seduced = who[madam]; }
+    if (!winner) winner = winCheck(roles, al2);
+    push({ ...st, phase: 'result', alive: al2, res: { tally, who }, ann: announce(st, items), contact, seduced, info, winner, wuid, next: winner ? 'end' : 'night', timeLeft: sec(9) });
+  }
+  const stepDur = (s) => sec(s === 'all' ? 60 : s === 'mafia' ? 25 : 12);
+  function toNight(st) {
+    const c = cfg(), has = { mafia: true, doctor: c.doc, police: c.pol, spy: !!c.extra.spy, reporter: !!c.extra.reporter && st.day >= 2 };
+    const steps = c.night === 'sim' ? ['all'] : NIGHT_ROLES.filter(r => has[r]);      // 그 역할이 죽었어도 똑같이 부르고 기다린다
+    push({ ...st, phase: 'night', steps, step: 0, timeLeft: stepDur(steps[0]), res: null });
+  }
+  function resolveNight(st) {
+    const al = arr(st.alive), roles = st.roles || {}, c = cfg(), p = picksOf(st), blocked = st.seduced || '';
+    const pick = (id) => (p[id] && al.includes(p[id].t)) ? p[id].t : null, actor = (r) => al.find(id => roles[id] === r && id !== blocked);
+    const items = [], used = { ...(st.used || {}) }, contact = { ...(st.contact || {}) }, seen = JSON.parse(JSON.stringify(st.seen || {})), pub = { ...(st.pub || {}) }, info = {}, nd = st.day + 1;
+    // 마피아의 공격 대상: 가장 많이 고른 사람, 동률이면 마지막에 고른 선택
+    const cnt = {}, last = {}; for (const id of al) if (roles[id] === 'mafia' && pick(id)) { const tg = pick(id); cnt[tg] = (cnt[tg] || 0) + 1; last[tg] = Math.max(last[tg] || 0, p[id].at || 0); }
+    const target = Object.keys(cnt).sort((a, b) => (cnt[b] - cnt[a]) || (last[b] - last[a]))[0] || null;
+    const doc = actor('doctor'), guard = doc ? pick(doc) : null; let died = null;
+    if (!target) items.push({ type: 'quiet' });
+    else if (guard === target) items.push({ type: 'saved' });
+    else if (roles[target] === 'soldier' && !used.soldier) { used.soldier = true; items.push({ type: 'soldier' }); }
+    else { const lv = arr(st.lovers), mate = lv.includes(target) ? lv.find(id => id !== target) : null;
+      if (mate && al.includes(mate) && !used.lover) { used.lover = true; died = mate; items.push({ type: 'lover', uid: mate, role: c.reveal ? roles[mate] : '' }); }
+      else { died = target; items.push({ type: 'kill', uid: target, role: c.reveal ? roles[target] : '' }); } }
+    const pol = actor('police'); if (pol && pick(pol)) { const tg = pick(pol), y = roles[tg] === 'mafia'; info[pol] = { type: 'police', uid: tg, res: y, d: nd }; (seen[pol] = seen[pol] || {})[tg] = y ? 'mafia' : 'no'; }
+    const spy = actor('spy'); if (spy && pick(spy)) { const tg = pick(spy); info[spy] = { type: 'spy', uid: tg, role: roles[tg], d: nd, contact: roles[tg] === 'mafia' }; (seen[spy] = seen[spy] || {})[tg] = roles[tg]; if (roles[tg] === 'mafia') contact[spy] = true; }
+    const rep = actor('reporter'); if (rep && !used.reporter && st.day >= 2 && pick(rep)) { const tg = pick(rep); used.reporter = true; pub[tg] = roles[tg]; items.push({ type: 'report', uid: tg, role: roles[tg] }); }
+    if (blocked && al.includes(blocked) && ['doctor', 'police', 'spy', 'reporter'].includes(roles[blocked])) info[blocked] = { type: 'blocked', d: nd };
+    const al2 = died ? al.filter(id => id !== died) : al, winner = winCheck(roles, al2);
+    push({ ...st, phase: 'morning', day: nd, alive: al2, ann: announce(st, items), used, contact, seen, pub, info, seduced: '', winner, next: winner ? 'end' : 'day', timeLeft: sec(10) });
+  }
+  function endGame(st) {
+    push({ ...st, phase: 'end', timeLeft: 0 });
+    const o = arr(st.order), roles = st.roles || {};
+    const winners = st.winner === 'joker' ? [st.wuid] : o.filter(id => st.winner === 'maf' ? MAF_TEAM.includes(roles[id]) : (!MAF_TEAM.includes(roles[id]) && roles[id] !== 'joker'));
+    NG.recordTeam(GAME, o, winners);
+  }
+  room.setHostLoop(() => {
+    const st = room.state; if (!room.isHost || !st) return; state = { ...fresh(), ...st }; const ph = st.phase;
+    if (ph === 'lobby') { const c = cfg(); if (c.auto) { const r = reco(Math.max(MIN, room.active().length)); if (r.maf !== c.maf || r.doc !== c.doc || r.pol !== c.pol) setCfg(r, false); } return; }
+    if (ph === 'end') return;
+    // 게임 중 20초 넘게 사라진 사람은 탈락 처리
+    for (const id of alive()) { if (room.players[id]) goneCnt[id] = 0; else if ((goneCnt[id] = (goneCnt[id] || 0) + 1) === 20) { const al2 = alive().filter(x => x !== id), w = winCheck(state.roles, al2); state = { ...state, alive: al2, ann: announce(state, [{ type: 'gone', uid: id }]) }; if (w && ph !== 'result' && ph !== 'morning') { state.winner = w; endGame(state); return; } } }
+    const tl = state.timeLeft, dec = () => push({ timeLeft: tl - 1 });
+    if (ph === 'role') tl <= 1 ? toDay(state) : dec();
+    else if (ph === 'day') tl <= 1 ? toVote(state) : dec();
+    else if (ph === 'vote') { const v = votes[dkey()] || {}, here = alive().filter(id => room.players[id]); (tl <= 1 || (here.length && here.every(id => v[id]))) ? resolveVote(state) : dec(); }
+    else if (ph === 'result') tl <= 1 ? (state.next === 'end' ? endGame(state) : toNight(state)) : dec();
+    else if (ph === 'night') { if (tl > 1) dec(); else { const ss = arr(state.steps), i = (state.step || 0) + 1; i < ss.length ? push({ step: i, timeLeft: stepDur(ss[i]) }) : resolveNight(state); } }
+    else if (ph === 'morning') tl <= 1 ? (state.next === 'end' ? endGame(state) : toDay(state)) : dec();
+  });
+
+  // ═════════ 내 행동 ═════════
+  const myRole = () => roleOf(me());
+  // 지금 밤 능력을 쓸 수 있는가
+  function canAct() {
+    if (state.phase !== 'night' || !isAlive(me())) return false; const r = myRole(), s = curStep();
+    if (!NIGHT_ROLES.includes(r)) return false; if (s !== 'all' && s !== r) return false;
+    if (r === 'reporter' && (state.day < 2 || (state.used || {}).reporter)) return false; return true;
+  }
+  const canTarget = (id) => { if (!isAlive(id)) return false; const r = myRole(); if (r === 'doctor') return true; if (id === me()) return false; if (r === 'mafia') return !mafKnown(id); return true; };
+  function onCell(id) {
+    if (state.phase === 'vote') { if (!isAlive(me()) || !isAlive(id) || id === me() || myVoteKey === dkey() || (votes[dkey()] || {})[me()]) return; sel = id; render(); }
+    else if (canAct() && canTarget(id)) room.ref.child(`nact/${dkey()}/${me()}`).set({ t: id, at: Date.now() }).catch(() => {});
+  }
+  function castVote() { if (!sel || state.phase !== 'vote' || !isAlive(me())) return; const k = dkey(); myVoteKey = k; room.ref.child(`vote/${k}/${me()}`).set(sel).catch(() => {}); render(); }
+  const chatMode = () => { const ph = state.phase; if (ph === 'lobby' || ph === 'end') return 'all'; if (!inGame() || !isAlive(me())) return 'off'; if (ph === 'night') return mafKnown(me()) ? 'maf' : 'off'; return ph === 'role' ? 'off' : 'all'; };
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); const v = $('inp').value.trim(), m = chatMode(); if (!v || m === 'off') return; if (m === 'maf') room.ref.child('mchat').push({ by: me(), name: NG.me.name, text: v.slice(0, 40), g: state.gid }).catch(() => {}); else room.sendChat(v); $('inp').value = ''; });
+
+  // ═════════ 화면 ═════════
+  // 내가 id의 역할을 알고 있으면 역할 키, 경찰 조사 결과만 알면 'no'
+  function known(id) {
+    const r = roleOf(id); if (!r) return '';
+    if (state.phase === 'end' || id === me() || !inGame() || !isAlive(me())) return r;
+    if ((state.pub || {})[id]) return r;
+    if (!isAlive(id) && (cfg().reveal || myRole() === 'medium')) return r;
+    if (mafKnown(me()) && mafKnown(id)) return r;
+    if (r === 'lover' && myRole() === 'lover') return r;
+    return ((state.seen || {})[me()] || {})[id] || '';
+  }
+  const rlClass = (r, id) => r === 'no' ? 'cit' : MAF_TEAM.includes(r) ? 'maf' : r === 'joker' ? 'jok' : id === me() ? 'me' : 'cit';
+  function annText(it) {
+    const n = it.uid ? room.nameOf(it.uid) : '', role = it.role ? t('aRole', rn(it.role)) : '';
+    switch (it.type) { case 'saved': return ['good', t('aSaved')]; case 'kill': return ['bad', t('aKill', n) + role]; case 'soldier': return ['good', t('aSoldier')]; case 'lover': return ['bad', t('aLover', n) + role]; case 'quiet': return ['', t('aQuiet')];
+      case 'report': return ['news', t('aReport', n, rn(it.role))]; case 'exec': return ['bad', t('aExec', n) + role]; case 'tie': return ['', t('aTie')]; case 'polit': return ['news', t('aPolit')]; case 'novote': return ['', t('aNoVote')]; case 'gone': return ['', t('aGone', n)]; }
+    return ['', ''];
+  }
+  function infoText() { const i = (state.info || {})[me()]; if (!i || (i.d !== state.day)) return ''; const n = i.uid ? room.nameOf(i.uid) : '';
+    return i.type === 'police' ? t(i.res ? 'iPolY' : 'iPolN', n) : i.type === 'spy' ? t('iSpy', n, rn(i.role)) + (i.contact ? ' ' + t('iContact') : '') : i.type === 'contact' ? t('iContact') : i.type === 'blocked' ? t('iBlocked') : ''; }
+  const winText = () => state.winner === 'joker' ? t('winJok', room.nameOf(state.wuid)) : t(state.winner === 'maf' ? 'winMaf' : 'winCit');
+  const iWon = () => { const r = myRole(); return state.winner === 'joker' ? state.wuid === me() : state.winner === 'maf' ? MAF_TEAM.includes(r) : (!MAF_TEAM.includes(r) && r !== 'joker'); };
+  const moodOf = () => ({ day: 'day', morning: 'day', vote: 'vote', result: 'vote', night: 'night' }[state.phase] || '');
+  function mafTarget() { const p = picksOf(), cnt = {}, last = {}; for (const id of alive()) if (roleOf(id) === 'mafia' && p[id] && isAlive(p[id].t)) { cnt[p[id].t] = (cnt[p[id].t] || 0) + 1; last[p[id].t] = Math.max(last[p[id].t] || 0, p[id].at || 0); } const tg = Object.keys(cnt).sort((a, b) => (cnt[b] - cnt[a]) || (last[b] - last[a]))[0]; return tg ? [tg, cnt[tg]] : null; }
+
+  function draw(id, key, fn) { if (keys[id] === key) return; keys[id] = key; const el = $(id); el.innerHTML = ''; fn(el); }
+  function renderRole() {
+    const r = myRole(), open = showRole && r; $('roleModal').classList.toggle('hidden', !open); if (!open) return;
+    const team = MAF_TEAM.includes(r) ? 'teamMaf' : r === 'joker' ? 'teamJok' : 'teamCit';
+    const mates = mafKnown(me()) ? order().filter(id => id !== me() && mafKnown(id)).map(id => `${room.nameOf(id)}(${rn(roleOf(id))})`) : [];
+    const lover = r === 'lover' ? arr(state.lovers).filter(id => id !== me()).map(id => room.nameOf(id)) : [];
+    $('roleBox').innerHTML = `<div class="lbl" style="font-size:12px;color:var(--muted)">${t('roleTitle')}</div>${person(me(), 64)}<div class="rolename${MAF_TEAM.includes(r) ? ' maf' : ''}">${rn(r)}</div><div class="pill">${t(team)}</div><p style="font-size:13px;line-height:1.7;word-break:keep-all">${RD[L()][r]}</p>`
+      + (mates.length ? `<div class="priv" style="font-size:12px;color:var(--pink);font-weight:700">${esc(t('mates', mates.join(', ')))}</div>` : '') + (lover.length ? `<div style="font-size:12px;color:var(--mint);font-weight:700">${esc(t('loverIs', lover.join(', ')))}</div>` : '')
+      + `<div style="font-size:11px;color:var(--muted);line-height:1.6">${state.phase === 'role' ? t('roleSoon', state.timeLeft) + '<br>' : ''}${t('hideTip')}</div>`;
+  }
+  function timerHTML(total) { return `<div class="tbar${state.timeLeft <= Math.min(10, total / 4) ? ' hot' : ''}" id="tbar" data-total="${total}"><i id="tfill" style="width:${Math.max(0, Math.min(100, (state.timeLeft - 1) / Math.max(1, total - 1) * 100))}%"></i></div>`; }
+
+  function render() {
+    const st = state, ph = st.phase, c = cfg(), list = room.playerList(), host = room.isHost, n = room.active().length, mine = myRole(), aliveMe = isAlive(me()), playing = inGame();
+    const acting = canAct(), mafView = ph === 'night' && aliveMe && mafKnown(me()) && (curStep() === 'mafia' || curStep() === 'all');
+    const eyes = ph === 'night' && playing && aliveMe && !acting && !mafView;
+    document.body.classList.toggle('night', ph === 'night'); document.body.classList.toggle('eyes', eyes);
+    $('roleBtn').classList.toggle('hidden', !mine || ph === 'lobby' || ph === 'end' || ph === 'night');
+    if (ph === 'role' && mine && keys.roleShown !== st.gid) { keys.roleShown = st.gid; showRole = true; }
+    if (ph === 'night' && showRole) showRole = false;
+    renderRole(); syncSndBtns();
+    const cm = chatMode(); $('inp').disabled = cm === 'off'; $('sendBtn').disabled = cm === 'off'; $('inp').placeholder = t(cm === 'maf' ? 'chatMafPh' : cm === 'off' ? 'chatOff' : 'chatPh'); $('chatLbl').textContent = t(cm === 'maf' ? 'chatMaf' : 'chatAll');
+    const pk = list.map(p => p.id).join(','), tl = $('tfill');
+    const privLine = () => { const x = infoText(); return x ? `<div class="priv">${esc(x)}</div>` : ''; };
+    const specLine = () => !playing ? `<div class="sub">${t('spec')}</div>` : !aliveMe ? `<div class="sub">${t('deadSpec')}</div>` : '';
+
+    // ── 위쪽 카드
+    if (ph === 'lobby') draw('pin', ['l', list.length, JSON.stringify(c), NG.ui].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('moon', 44)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div><div class="sum"><b style="color:var(--muted);font-size:11px">${t('sumT')}</b><br>${esc(cfgSum(c, Math.max(n, cfgCount(c))))}</div></div>`; });
+    else if (ph === 'role') draw('pin', ['r', st.gid].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('moon', 44)}</div><div class="q">${t('roleTitle')}…</div><div class="sub">${esc(cfgSum(c, order().length))}</div></div>`; });
+    else if (ph === 'day') draw('pin', ['d', dkey(), infoText(), aliveMe].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="lbl">${t('dayT', st.day)} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div>${timerHTML(sec(c.talk))}<div class="q">${t('daySub')}</div>${privLine()}${specLine()}</div>`; });
+    else if (ph === 'vote') draw('pin', ['v', dkey(), aliveMe].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="lbl">${t('voteT', st.day)} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div>${timerHTML(sec(40))}<div class="q">${t('voteSub')}</div>${specLine()}</div>`; });
+    else if (ph === 'result' || ph === 'morning') draw('pin', [ph, dkey(), (st.ann || {}).n, infoText()].join('|'), (el) => {
+      const items = arr((st.ann || {}).items); let h = `<div class="card qcard"><div class="lbl">${ph === 'morning' ? NG.icon('star', 14) + ' ' + t('morningT') : t('resT')}</div>`;
+      for (const it of items) { const [cls, tx] = annText(it); h += `<div class="ann ${cls}">${esc(tx)}</div>`; }
+      if (ph === 'result' && st.res) { const tally = st.res.tally || {}, who = st.res.who || {}; const ids = Object.keys(tally).sort((a, b) => tally[b] - tally[a]); if (ids.length) { h += '<div class="res">'; for (const id of ids) h += `<div><span>${esc(room.nameOf(id))}</span><b>${t('votesN', tally[id])}</b><small>${esc(t('votedBy', Object.keys(who).filter(v => who[v] === id).map(v => room.nameOf(v)).join(', ')))}</small></div>`; h += '</div>'; } }
+      h += (ph === 'morning' ? privLine() : (infoText() ? privLine() : '')) + `</div>`; el.innerHTML = h;
+    });
+    else if (ph === 'night') {
+      const s = curStep(), tg = mafTarget(), my = pickOf(me());
+      draw('pin', ['n', dkey(), st.step, eyes, acting, mafView, my, JSON.stringify(mafView || !aliveMe || !playing ? tg : 0), aliveMe].join('|'), (el) => {
+        if (eyes) { el.innerHTML = `<div class="card qcard eyes"><div class="big-ic">${NG.icon('moon', 72)}</div><div class="q">${t('eyes')}</div><div class="sub">${t('eyesSub')}</div></div>`; return; }
+        const pickT = { mafia: 'pickMaf', doctor: 'pickDoc', police: 'pickPol', spy: 'pickSpy', reporter: 'pickRep' };
+        let h = `<div class="card qcard"><div class="lbl">${NG.icon('moon', 14)} ${t('nightT2', st.day)}${s !== 'all' && (!aliveMe || !playing) ? ' · ' + t('stepOf', rn(s)) : ''} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div>${timerHTML(stepDur(s))}`;
+        if (acting) h += `<div class="q">${t(pickT[mine])}</div>` + (mine !== 'mafia' ? `<div class="sub">${my ? esc(t('picked', room.nameOf(my))) : ''}</div>` : '');
+        else if (mafView) h += `<div class="q" style="font-size:16px">${t('mafWatch')}</div>`; else h += `<div class="q" style="font-size:16px">${t('specNight')}</div>${specLine()}`;
+        if ((acting && mine === 'mafia') || mafView || !aliveMe || !playing) h += `<div class="priv" style="color:var(--pink)">${tg ? esc(t('nowTarget', room.nameOf(tg[0]), tg[1])) : t('noTarget')}</div>`;
+        el.innerHTML = h + '</div>';
+      });
+    }
+    else if (ph === 'end') draw('pin', ['e', st.gid, st.winner].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon(st.winner === 'maf' ? 'moon' : 'trophy', 44)}</div><div class="q">${esc(winText())}</div>${playing ? `<div class="ann ${iWon() ? 'good' : 'bad'}">${t(iWon() ? 'youWin' : 'youLose')}</div>` : ''}</div>`; });
+    if (tl && $('tleft')) { const total = +$('tbar').dataset.total; $('tleft').textContent = NG.fmtTime(st.timeLeft); tl.style.width = Math.max(0, Math.min(100, (st.timeLeft - 1) / Math.max(1, total - 1) * 100)) + '%'; $('tbar').classList.toggle('hot', st.timeLeft <= Math.min(10, total / 4)); }
+
+    // ── 설정 (대기실)
+    draw('view', ph === 'lobby' ? ['l', host, JSON.stringify(c), n, NG.ui].join('|') : 'x', (el) => {
+      if (ph !== 'lobby') return;
+      const box = NG.el('div', 'card setbox'), err = cfgErr(c, n);
+      const sw = (on, fn) => { const b = NG.el('button', 'sw' + (on ? ' on' : ''), t(on ? 'on' : 'off')); b.disabled = !host; b.addEventListener('click', fn); return b; };
+      const rowEl = (label, small, ctrl) => { const r = NG.el('div', 'srow'); r.innerHTML = `<span>${label}${small ? `<small>${small}</small>` : ''}</span>`; r.appendChild(ctrl); return r; };
+      box.appendChild(NG.el('h4', '', t('setTitle')));
+      const stp = NG.el('div', 'step'); const mn = NG.el('button', '', '−'), pl = NG.el('button', '', '+'); mn.disabled = !host || c.maf <= 1; pl.disabled = !host || (c.maf + 1 + (c.extra.spy ? 1 : 0) + (c.extra.madam ? 1 : 0)) * 2 >= Math.max(n, MIN);
+      mn.addEventListener('click', () => setCfg({ maf: c.maf - 1 })); pl.addEventListener('click', () => setCfg({ maf: c.maf + 1 })); stp.append(mn, NG.el('b', '', c.maf), pl);
+      box.appendChild(rowEl(t('mafN'), '', stp));
+      box.appendChild(rowEl(rn('doctor'), '', sw(c.doc, () => setCfg({ doc: !c.doc }))));
+      box.appendChild(rowEl(rn('police'), '', sw(c.pol, () => setCfg({ pol: !c.pol }))));
+      box.appendChild(NG.el('h4', '', t('extraT')));
+      const rs = NG.el('div', 'roles'); for (const r of EXTRA) { const b = NG.el('button', c.extra[r] ? 'on' : ''); b.disabled = !host; b.innerHTML = `<b>${rn(r)}${r === 'lover' ? ' ×2' : ''}</b><small>${RD[L()][r]}</small>`; b.addEventListener('click', () => setCfg({ extra: { ...c.extra, [r]: !c.extra[r] } })); rs.appendChild(b); } box.appendChild(rs);
+      const seg = (opts, cur, fn) => { const s = NG.el('div', 'seg'); for (const [v, lb] of opts) { const b = NG.el('button', v === cur ? 'on' : '', lb); b.disabled = !host; b.addEventListener('click', () => fn(v)); s.appendChild(b); } return s; };
+      box.appendChild(rowEl(t('talkT'), '', seg([[120, t('min', 2)], [180, t('min', 3)], [300, t('min', 5)]], c.talk, (v) => setCfg({ talk: v }))));
+      box.appendChild(rowEl(t('nightT'), t(c.night === 'sim' ? 'nSimD' : 'nSeqD'), seg([['seq', t('nSeq')], ['sim', t('nSim')]], c.night, (v) => setCfg({ night: v }))));
+      const rv = sw(c.reveal, () => setCfg({ reveal: !c.reveal })); if (c.extra.medium) rv.disabled = true; box.appendChild(rowEl(t('revealT'), c.extra.medium ? t('medNote') : '', rv));
+      if (err) box.appendChild(NG.el('div', 'warnline', err)); else if (n >= 12 && !EXTRA.some(r => c.extra[r])) box.appendChild(NG.el('div', 'warnline', t('tipBig')));
+      const foot = NG.el('div', 'seg'); foot.style.justifyContent = 'flex-start';
+      if (host && !c.auto) { const b = NG.el('button', '', t('reco')); b.addEventListener('click', () => setCfg({ ...reco(Math.max(MIN, n)), extra: {}, auto: true, reveal: true }, false)); foot.appendChild(b); }
+      const tb = NG.el('button', '', t('soundTest')); tb.addEventListener('click', () => { Snd.init(); Snd.set('mf-voice', true); Snd.set('mf-bgm', true); syncSndBtns(); Snd.setMood('night'); Snd.speak(SAY[L()].test); setTimeout(() => { Snd.sfx('good'); Snd.setMood(moodOf()); }, 4000); }); foot.appendChild(tb);
+      box.appendChild(foot); el.appendChild(box);
+    });
+
+    // ── 참가자 칸
+    const ids = ph === 'lobby' ? list.map(p => p.id) : order(), p = picksOf(), v = votes[dkey()] || {}, iVoted = myVoteKey === dkey() || !!v[me()];
+    const showMk = ph === 'night' && (mafView || (acting && mine === 'mafia') || !aliveMe || !playing);
+    draw('stat', ['s', ph, st.gid, st.day, st.step, ids.join(','), alive().join(','), pk, sel, iVoted, acting, pickOf(me()), showMk ? JSON.stringify(p) : '', ph === 'vote' ? Object.keys(v).length : '', JSON.stringify(st.contact || {}), JSON.stringify(st.pub || {}), JSON.stringify((st.seen || {})[me()] || {}), room.hostId(), NG.ui].join('|'), (el) => {
+      const g = NG.el('div', 'grid');
+      for (const id of ids) {
+        const dead = ph !== 'lobby' && !isAlive(id), k = ph === 'lobby' ? '' : known(id), my = pickOf(me());
+        const can = (ph === 'vote' && aliveMe && !iVoted && !dead && id !== me()) || (acting && canTarget(id));
+        const cell = NG.el('button', 'pc' + (dead ? ' dead' : '') + (id === me() ? ' me' : '') + (can ? ' can' : '') + ((ph === 'vote' && sel === id && !iVoted) || (acting && my === id) ? ' sel' : ''));
+        cell.disabled = !can;
+        let h = `${person(id, 34)}<span class="nm">${esc(room.nameOf(id))}</span>`;
+        h += k ? `<span class="rl ${rlClass(k, id)}">${k === 'no' ? t('polNo') : rn(k)}</span>` : `<span class="rl">${dead ? t('dead') : id === me() ? t('youTag') : ph === 'lobby' && id === room.hostId() ? t('host') : '·'}</span>`;
+        if (showMk) { const who = alive().filter(m => roleOf(m) === 'mafia' && p[m] && p[m].t === id); if (who.length) h += `<span class="mk">${who.map(m => person(m, 16)).join('')}</span>`; }
+        if (ph === 'vote' && v[id] && !dead) h += `<span class="vt">✓</span>`;
+        cell.innerHTML = h; cell.addEventListener('click', () => onCell(id)); g.appendChild(cell);
+      }
+      el.appendChild(g);
+    });
+
+    // ── 아래 버튼
+    const vc = Object.keys(v).filter(id => isAlive(id)).length;
+    draw('btns', ['b', ph, host, n, cfgErr(c, n), sel, iVoted, vc, aliveMe, playing, st.gid].join('|'), (el) => {
+      if (ph === 'lobby') { const err = cfgErr(c, n); if (host) { const b = NG.el('button', 'btn-main', err && n < MIN ? err : t('startBtn')); b.disabled = !!err; b.addEventListener('click', startGame); el.appendChild(b); } else el.appendChild(NG.el('div', 'msg2', n < MIN ? t('need', MIN) : t('waitHost'))); }
+      else if (ph === 'day' && host) { const b = NG.el('button', 'btn-ghost', t('skipTalk')); b.addEventListener('click', () => { if (room.isHost && state.phase === 'day') toVote(state); }); el.appendChild(b); }
+      else if (ph === 'vote' && aliveMe) { if (iVoted) el.appendChild(NG.el('div', 'msg2', t('voted', vc, alive().length))); else { const b = NG.el('button', 'btn-main', sel ? t('voteBtn') : t('pickFirst')); b.disabled = !sel; b.addEventListener('click', castVote); el.appendChild(b); } }
+      else if (ph === 'end') { if (host) { const b = NG.el('button', 'btn-main', t('againBtn')); b.addEventListener('click', () => push({ ...fresh(), lang: state.lang, langSet: true, cfg: { ...cfg() } })); el.appendChild(b); } const h = NG.el('button', 'btn-ghost', t('toLobby')); h.addEventListener('click', leave); el.appendChild(h); }
+    });
+  }
+
+  // 단계가 바뀔 때: 음성 안내·배경음·진동·발표를 채팅에 기록
+  function cue(prev) {
+    const st = state, ph = st.phase, S = SAY[L()], k = [st.gid, st.day, ph, st.step].join('|'); if (k === lastCue) return; lastCue = k;
+    Snd.setMood(moodOf());
+    if (ph !== prev.phase || st.day !== prev.day) { sel = null; try { window.scrollTo({ top: 0 }); } catch {} if (ph !== 'role' && ph !== 'day') showRole = false; }
+    if (ph === 'night') { const ss = arr(st.steps), s = ss[st.step || 0];
+      if (s === 'all') Snd.speak(S.nightSim); else Snd.speak((st.step ? S.close(S.subj[ss[st.step - 1]]) : S.night) + ' ' + S.subj[s] + ' ' + S.open[s]); }
+    else if (ph === 'morning') { const items = arr((st.ann || {}).items); Snd.speak((prev.phase === 'night' && cfg().night === 'seq' ? S.close(S.subj[arr(prev.steps).slice(-1)[0]] || '') + ' ' : '') + S.morning + ' ' + items.map(it => annText(it)[1]).join(' ')); Snd.sfx(items.some(it => it.type === 'kill' || it.type === 'lover') ? 'bad' : 'good'); try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {} }
+    else if (ph === 'day' && prev.phase !== 'morning') Snd.speak(S.day);
+    else if (ph === 'vote') Snd.speak(S.vote);
+    else if (ph === 'result') { const items = arr((st.ann || {}).items); Snd.speak(items.map(it => annText(it)[1]).join(' ')); if (items.some(it => it.type === 'exec')) Snd.sfx('bad'); }
+    else if (ph === 'end') { Snd.speak(winText()); Snd.sfx(st.winner === 'joker' ? 'joker' : inGame() && iWon() ? 'win' : 'lose'); if (inGame() && iWon()) NG.confetti(); }
+  }
+  function logAnn() { const a = state.ann || {}; if (!a.n || a.n <= lastAnn) return; lastAnn = a.n; for (const it of arr(a.items)) { const [cls, tx] = annText(it); if (tx) NG.addMsg(cls === 'bad' ? 'close' : cls === 'good' ? 'win' : 'sys', '', tx); } }
+  room.on('state', (s) => { const prev = state; state = { ...fresh(), ...(s || {}) }; if (firstState) { firstState = false; lastAnn = (state.ann && state.ann.n) || 0; lastCue = [state.gid, state.day, state.phase, state.step].join('|'); Snd.setMood(moodOf()); } else { logAnn(); cue(prev); if (state.phase === 'end' && prev.phase !== 'end') NG.addMsg('win', '', winText()); } render(); });
+  room.on('players', (list, info) => { for (const x of (info && info.notes) || []) NG.addMsg('sys', '', x); render(); });
+  room.on('chat', (m) => NG.addMsg('', m.name, m.text));
+
+  room.join(fresh()).then(r => {
+    if (r.error) { location.href = 'index.html?err=' + encodeURIComponent(r.error); return; }
+    room.listen(room.ref.child('nact'), 'value', (s) => { nact = s.val() || {}; render(); });
+    room.listen(room.ref.child('vote'), 'value', (s) => { votes = s.val() || {}; render(); });
+    // 마피아 비밀 채팅: 마피아 편(접선한 스파이·마담 포함)과 탈락자·구경꾼에게만 보임
+    let seenKey = null;
+    room.listen(room.ref.child('mchat').limitToLast(30), 'child_added', (s) => { const m = s.val(); if (!m || (seenKey && s.key <= seenKey)) return; seenKey = s.key; if (m.g !== state.gid) return; if (mafKnown(me()) || !inGame() || !isAlive(me())) NG.addMsg('maf', m.name, m.text); });
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>
