@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>반응속도 테스트 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 1인 게임: 화면 전체가 터치 패드 (모바일 우선) */
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top .ttl { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; gap: 18px; width: 100%; max-width: 720px; margin: 0 auto; padding: 20px 15px 18px; min-height: 0; }
+  .pad { flex: 1; min-height: 340px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 22px 18px; gap: 10px;
+    background: var(--panel); --bc: var(--ink); --dc: var(--ink); --dp: 9px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; overflow: hidden; }
+  .pad > * { position: relative; }
+  /* 상태별 색 + 도트 체크무늬 */
+  .pad.wait, .pad.go, .pad.early { background-image: linear-gradient(45deg, rgba(0,0,0,.08) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.08) 75%), linear-gradient(45deg, rgba(0,0,0,.08) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.08) 75%); background-size: 24px 24px; background-position: 0 0, 12px 12px; }
+  .pad.wait { background-color: #c8283f; --bc: #5c0f1d; }
+  .pad.go { background-color: #1fbf63; --bc: #0b5a2c; }
+  .pad.early { background-color: #e88a1a; --bc: #6b3a05; }
+  .pad.shot { background-color: #24305e; --bc: var(--ink); }
+  .pad h2 { font-size: clamp(26px, 8vw, 46px); color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.45); line-height: 1.2; }
+  .pad p { color: rgba(255,255,255,.88); font-size: 14px; line-height: 1.7; }
+  .pad .hint { font-size: 13px; color: var(--yellow); animation: blink 1s steps(2) infinite; margin-top: 6px; }
+  .pad .ms { font-size: clamp(64px, 20vw, 120px); font-weight: 700; color: #fff; line-height: 1; text-shadow: 5px 5px 0 rgba(0,0,0,.4); font-variant-numeric: tabular-nums; animation: pop .25s steps(3); }
+  .pad .ms small { font-size: .3em; margin-left: 4px; }
+  .pad .grade { font-size: 15px; color: var(--yellow); font-weight: 700; }
+  .big-ic { animation: bob 1s steps(2) infinite; margin-bottom: 6px; }
+  .intro h2 { color: var(--yellow); }
+  .howto { display: flex; gap: 14px; justify-content: center; margin: 10px 0 4px; flex-wrap: wrap; }
+  .howto div { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); width: 76px; }
+  .howto i { width: 44px; height: 44px; display: block; }
+  .howto .r { background: #c8283f; } .howto .g { background: #1fbf63; } .howto .t { background: var(--panel2); display: flex; align-items: center; justify-content: center; }
+  .rounds { display: flex; gap: 8px; justify-content: center; }
+  .rounds i { width: 14px; height: 14px; background: rgba(255,255,255,.22); display: block; }
+  .rounds i.on { background: #fff; } .rounds i.cur { background: var(--yellow); animation: blink .8s steps(2) infinite; }
+  .bestline { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; justify-content: center; }
+  .bestline b { color: var(--yellow); }
+
+  /* 결과 */
+  .result { cursor: default; touch-action: auto; justify-content: flex-start; padding-top: 26px; overflow-y: auto; }
+  .result .avg { font-size: clamp(56px, 17vw, 96px); font-weight: 700; color: var(--yellow); line-height: 1; text-shadow: 5px 5px 0 var(--pink); animation: pop .3s steps(3); }
+  .result .avg small { font-size: .3em; color: var(--text); text-shadow: none; margin-left: 4px; }
+  .result .lbl { font-size: 12px; color: var(--muted); }
+  .newrec { background: var(--pink); color: #fff; font-size: 13px; font-weight: 700; padding: 5px 10px; animation: pulse .6s steps(2) infinite; }
+  .bars { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+  .bar { display: grid; grid-template-columns: 22px 1fr 62px; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  .bar .track { height: 14px; background: var(--ink); position: relative; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--mint); }
+  .bar.best .fill { background: var(--yellow); }
+  .bar .v { text-align: right; color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 380px; padding: 3px; }
+  .stat { background: var(--panel2); padding: 8px 4px; }
+  .stat b { display: block; font-size: 17px; color: var(--text); }
+  .stat span { font-size: 10px; color: var(--muted); }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 3px 3px 0; }
+  .acts button { font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .full { grid-column: 1 / -1; font-size: 18px; padding: 14px; }
+  @media (min-width: 761px) { .wrap { padding-top: 26px; } .pad { min-height: 440px; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <span class="ttl"><i data-ic="bolt" data-size="18"></i><span data-t="gameName"></span></span>
+  <span class="grow"></span>
+  <span class="pill" id="bestPill"><i data-ic="trophy" data-size="14"></i><span id="bestTxt">--</span></span>
+</div>
+
+<div class="wrap">
+  <div class="pad pxb" id="pad"></div>
+  <div class="acts hidden" id="acts">
+    <button class="btn-main full" id="againBtn"><i data-ic="play" data-size="14"></i><span data-t="again2"></span></button>
+    <button class="btn-yellow" id="rankBtn"><i data-ic="trophy" data-size="16"></i><span data-t="seeRank"></span></button>
+    <button class="btn-ghost" id="homeBtn"><i data-ic="home" data-size="16"></i><span data-t="toLobby"></span></button>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '반응속도 테스트', again2: '다시 도전', seeRank: '랭킹 보기', toLobby: '로비로',
+      introTitle: '반응속도 테스트', introText: (n) => `빨간 화면이 <b>초록색</b>으로 바뀌는 순간 터치!<br>${n}번 재서 <b>평균</b>으로 랭킹에 올라가요.`,
+      stepWait: '기다리고', stepGo: '초록이면', stepTap: '터치!', tapStart: '화면을 터치해서 시작', keyHint: 'PC는 스페이스바도 돼요',
+      waitMsg: '기다리세요…', waitSub: '초록색이 되면 바로 터치!', goMsg: '지금!', early: '너무 빨라요!', earlySub: '초록색이 된 다음에 눌러야 해요.<br>터치해서 이 라운드 다시', guess: '찍기 반칙!', guessSub: '사람은 그렇게 빠를 수 없어요 😏<br>터치해서 이 라운드 다시',
+      next: '터치해서 다음', lastNext: '터치해서 결과 보기', roundN: (r, t) => `${r} / ${t}`,
+      avgLbl: '평균 반응속도', bestS: '가장 빠름', worstS: '가장 느림', earlyS: '반칙', newRec: '최고 기록 경신!', myRank: (n) => `현재 랭킹 ${n}위`, prevBest: (ms) => `이전 최고 ${ms}ms`,
+      bestPill: (ms) => `최고 ${ms}ms`, noBest: '첫 도전!',
+      grade: (ms) => ms < 180 ? '전설의 반사신경!' : ms < 210 ? '프로게이머급!' : ms < 250 ? '평균보다 빨라요' : ms < 300 ? '평균 정도예요' : ms < 380 ? '조금만 더 집중!' : '다시 도전해 봐요' },
+    ja: { gameName: '反射神経テスト', again2: 'もう一回', seeRank: 'ランキング', toLobby: 'ロビーへ',
+      introTitle: '反射神経テスト', introText: (n) => `赤い画面が<b>緑</b>に変わった瞬間にタップ！<br>${n}回測って<b>平均</b>でランキングに載ります。`,
+      stepWait: '待って', stepGo: '緑になったら', stepTap: 'タップ！', tapStart: '画面をタップしてスタート', keyHint: 'PCはスペースキーでもOK',
+      waitMsg: '待って…', waitSub: '緑になったらすぐタップ！', goMsg: '今！', early: '早すぎ！', earlySub: '緑になってから押してね。<br>タップしてこのラウンドをやり直し', guess: '予測タップ！',  guessSub: '人間にはその速さは無理です 😏<br>タップしてこのラウンドをやり直し',
+      next: 'タップして次へ', lastNext: 'タップして結果を見る', roundN: (r, t) => `${r} / ${t}`,
+      avgLbl: '平均反応速度', bestS: '最速', worstS: '最遅', earlyS: 'フライング', newRec: '自己ベスト更新！', myRank: (n) => `現在ランキング${n}位`, prevBest: (ms) => `前回のベスト ${ms}ms`,
+      bestPill: (ms) => `ベスト ${ms}ms`, noBest: '初挑戦！',
+      grade: (ms) => ms < 180 ? '伝説の反射神経！' : ms < 210 ? 'プロゲーマー級！' : ms < 250 ? '平均より速い' : ms < 300 ? '平均くらい' : ms < 380 ? 'もう少し集中！' : 'もう一回挑戦！' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const GAME = 'react', ROUNDS = 5, MIN_HUMAN = 90;   // 90ms 미만은 '찍기'로 처리
+  document.title = `${t('gameName')} · DIDI Games`;
+
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); NG.bindLogo(document);
+  NG.setPresence(GAME);
+  NG.touchProfile(GAME);
+
+  let myAvg = null;
+  const setBest = () => { $('bestTxt').textContent = myAvg != null ? t('bestPill', myAvg) : t('noBest'); };
+  setBest();
+  NG.myStats(GAME).then(s => { if (s && s.avg != null) { myAvg = s.avg; setBest(); if (phase === 'intro') render(); } });
+
+  // phase: intro → wait → go → shot (… ROUNDS번) → result.  early: 반칙 후 같은 라운드 다시
+  let phase = 'intro', times = [], fouls = 0, goTimer = null, goT = 0, lastMs = 0, foulKind = 'early', result = null;
+  const pad = $('pad');
+
+  function roundsHTML() {
+    let h = '<div class="rounds">';
+    for (let i = 0; i < ROUNDS; i++) h += `<i class="${i < times.length ? 'on' : (i === times.length && phase !== 'intro' ? 'cur' : '')}"></i>`;
+    return h + '</div>';
+  }
+  function render() {
+    pad.className = 'pad pxb ' + phase;
+    $('acts').classList.toggle('hidden', phase !== 'result');
+    if (phase === 'intro') {
+      // 규칙 설명은 로비의 소개 팝업에 있음 → 여기서는 짧게
+      pad.innerHTML = `<div class="big-ic">${NG.icon('bolt', 64)}</div><h2>${t('introTitle')}</h2>
+        ${myAvg != null ? `<div class="bestline">${NG.icon('trophy', 14)}<b>${t('bestPill', myAvg)}</b></div>` : ''}
+        <div class="hint">▶ ${t('tapStart')}</div><p style="font-size:11px;opacity:.6">${matchMedia('(hover: hover)').matches ? t('keyHint') : ''}</p>`;
+    } else if (phase === 'wait') {
+      pad.innerHTML = `<h2>${t('waitMsg')}</h2><p>${t('waitSub')}</p>${roundsHTML()}`;
+    } else if (phase === 'go') {
+      pad.innerHTML = `<h2 style="font-size:clamp(48px,16vw,96px)">${t('goMsg')}</h2>`;
+    } else if (phase === 'early') {
+      pad.innerHTML = `<h2>${t(foulKind === 'guess' ? 'guess' : 'early')}</h2><p>${t(foulKind === 'guess' ? 'guessSub' : 'earlySub')}</p>${roundsHTML()}`;
+    } else if (phase === 'shot') {
+      const last = times.length >= ROUNDS;
+      pad.innerHTML = `<div class="ms">${lastMs}<small>ms</small></div><div class="grade">${t('grade', lastMs)}</div>${roundsHTML()}<div class="hint">▶ ${t(last ? 'lastNext' : 'next')}</div>`;
+    } else if (phase === 'result') {
+      const r = result, max = Math.max(...times, 400);
+      let bars = '<div class="bars">';
+      times.forEach((ms, i) => { bars += `<div class="bar${ms === r.best ? ' best' : ''}"><span>${i + 1}</span><span class="track"><span class="fill" style="width:${Math.max(6, Math.round(ms / max * 100))}%"></span></span><span class="v">${ms}ms</span></div>`; });
+      bars += '</div>';
+      pad.innerHTML = `<div class="lbl">${t('avgLbl')}</div><div class="avg">${r.avg}<small>ms</small></div><div class="grade">${t('grade', r.avg)}</div>
+        <div id="recLine" style="min-height:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center"></div>
+        <div class="stats"><div class="stat pxb"><b>${r.best}</b><span>${t('bestS')}</span></div><div class="stat pxb"><b>${r.worst}</b><span>${t('worstS')}</span></div><div class="stat pxb"><b>${fouls}</b><span>${t('earlyS')}</span></div></div>${bars}`;
+    }
+  }
+
+  function startRound() {
+    phase = 'wait'; render();
+    clearTimeout(goTimer);
+    goTimer = setTimeout(() => {
+      phase = 'go'; render();
+      // 화면이 실제로 초록으로 그려지는 프레임 시각을 기준으로 잰다
+      requestAnimationFrame((ts) => { goT = ts; });
+      goT = performance.now();
+    }, 1500 + Math.random() * 3000);
+  }
+  function finish() {
+    const sum = times.reduce((a, b) => a + b, 0);
+    result = { avg: Math.round(sum / times.length), best: Math.min(...times), worst: Math.max(...times) };
+    phase = 'result'; render();
+    const prevAvg = myAvg;
+    NG.recordSolo(GAME, { avg: result.avg, best: result.best }).then(async (res) => {
+      const line = $('recLine'); if (!line) return;
+      const prev = res && res.prev && res.prev.avg != null ? res.prev.avg : prevAvg;
+      if (prev == null || result.avg < prev) { line.insertAdjacentHTML('beforeend', `<span class="newrec">★ ${t('newRec')}</span>`); if (prev != null) line.insertAdjacentHTML('beforeend', `<span class="lbl">${t('prevBest', prev)}</span>`); NG.confetti(); }
+      myAvg = prev == null ? result.avg : Math.min(prev, result.avg); setBest();
+      try { const rows = await NG.leaderboard(GAME, 'avg', 200, true); const i = rows.findIndex(r => r.uid === NG.me.uid); if (i >= 0) line.insertAdjacentHTML('beforeend', `<span class="lbl">${NG.icon('trophy', 12)} ${t('myRank', i + 1)}</span>`); } catch {}
+    });
+  }
+  function tap(ts) {
+    if (phase === 'intro') { times = []; fouls = 0; startRound(); return; }
+    if (phase === 'wait') { clearTimeout(goTimer); fouls++; foulKind = 'early'; phase = 'early'; if (navigator.vibrate) navigator.vibrate(120); render(); return; }
+    if (phase === 'go') {
+      const now = (ts && ts > 0 && Math.abs(ts - performance.now()) < 1000) ? ts : performance.now();
+      const ms = Math.round(now - goT);
+      if (ms < MIN_HUMAN) { fouls++; foulKind = 'guess'; phase = 'early'; render(); return; }
+      lastMs = ms; times.push(ms); phase = 'shot'; render(); return;
+    }
+    if (phase === 'early') { startRound(); return; }
+    if (phase === 'shot') { if (times.length >= ROUNDS) finish(); else startRound(); return; }
+  }
+  pad.addEventListener('pointerdown', (e) => {
+    if (phase === 'result') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault(); tap(e.timeStamp);
+  });
+  window.addEventListener('keydown', (e) => {
+    if ((e.code === 'Space' || e.code === 'Enter') && phase !== 'result') { e.preventDefault(); if (!e.repeat) tap(e.timeStamp); }
+    else if (e.code === 'Enter' && phase === 'result') { $('againBtn').click(); }
+  });
+  $('againBtn').addEventListener('click', () => { phase = 'intro'; times = []; fouls = 0; tap(); });
+  $('rankBtn').addEventListener('click', () => { location.href = 'index.html?tab=rank&g=' + GAME; });
+  $('homeBtn').addEventListener('click', () => { location.href = 'index.html'; });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && (phase === 'wait' || phase === 'go')) { clearTimeout(goTimer); phase = 'early'; foulKind = 'early'; render(); } });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .lobby { max-width: 1080px; margin: 0 auto; padding: 14px 15px 40px; }
+  .lhead { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; padding: 10px 14px; background: var(--panel); margin-bottom: 22px; }
+  .meChip { display: inline-flex; align-items: center; gap: 8px; background: var(--panel2); --bc: var(--panel2); padding: 3px 10px 3px 3px; font-weight: 700; cursor: pointer; font-size: 14px; min-height: 0; margin: 0; --dp: 0px; --in: 0 0 0 0 transparent; }
+  .meChip .edit { color: var(--muted); font-size: 11px; }
+  .top-actions { display: flex; gap: 12px; margin-left: auto; align-items: center; }
+  .top-actions button { padding: 8px 12px; font-size: 14px; min-height: 40px; display: inline-flex; align-items: center; }
+
+  .ltabs { display: flex; gap: 10px; background: var(--panel); padding: 8px; margin-bottom: 22px; --dc: var(--ink); --dp: 6px; }
+  .ltabs button { flex: 1; padding: 10px 6px; font-size: 14px; background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 6px; --bc: transparent; --dc: transparent; --in: 0 0 0 0 transparent; margin: 0; }
+  .ltabs button.on { background: var(--panel2); color: var(--yellow); --bc: var(--ink); --in: inset 0 3px 0 0 rgba(255,255,255,.12); }
+  .ltabs .pxi { margin: 0; }
+  .ltabs .badge { background: var(--pink); color: #fff; font-size: 11px; padding: 1px 6px; font-weight: 700; }
+  .ltabs .badge.zero { background: var(--line); color: var(--muted); }
+
+  .sec.hidden { display: none; }
+  .gsec + .gsec { margin-top: 30px; }
+  .gsec-h { display: flex; align-items: center; gap: 8px; margin: 0 2px 14px; }
+  .gsec-h h2 { font-size: 16px; color: var(--text); }
+  .gsec-h small { font-size: 11px; color: var(--muted); }
+  .gsec-h .tagc { font-size: 10px; padding: 2px 6px; color: #1a1426; font-weight: 700; }
+  .gsec-h .tagc.multi { background: var(--pink); color: #fff; }
+  .gsec-h .tagc.solo { background: var(--mint); }
+  .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px 16px; padding: 3px; }
+  .gcard { background: var(--panel); padding: 14px; cursor: pointer; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-rows: auto auto; gap: 10px 14px; align-items: center; text-align: left; --bc: var(--line); --dc: var(--ink); --dp: 8px; min-height: 0; animation: stepin .25s steps(3) both; }
+  .gcard .gic { grid-row: 1 / span 2; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; background: var(--ink); align-self: start; }
+  .gcard .gtx { min-width: 0; }
+  .gcard b { display: block; font-size: 17px; color: var(--text); margin-bottom: 4px; word-break: keep-all; }
+  .gcard small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; word-break: keep-all; }
+  .gcard .meta { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .gcard .cta { justify-self: start; font-size: 12px; font-weight: 700; padding: 6px 10px; background: var(--yellow); color: #1a1426; display: inline-flex; align-items: center; gap: 4px; }
+  .gcard.solo .cta { background: var(--mint); color: #0b2a20; }
+  .gcard:active { transform: translateY(3px); --dp: 5px; }
+  @media (hover: hover) { .gcard:hover { --bc: var(--yellow); } .gcard.solo:hover { --bc: var(--mint); } }
+
+  .rooms { display: flex; flex-direction: column; gap: 14px; padding: 3px; }
+  .rroom { display: flex; align-items: center; gap: 12px; background: var(--panel); padding: 10px 12px; cursor: pointer; --dc: var(--ink); --dp: 6px; }
+  .rroom:active { transform: translateY(3px); }
+  @media (hover: hover) { .rroom:hover { --bc: var(--purple); } }
+  .rroom .ic { width: 40px; height: 40px; background: var(--ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rroom .info { flex: 1; min-width: 0; }
+  .rroom .info b { display: block; font-size: 15px; margin-bottom: 3px; }
+  .rroom .info small { color: var(--muted); font-size: 11px; display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: center; }
+  .rroom .info small > span { display: inline-flex; align-items: center; gap: 4px; }
+  .rroom .code { font-weight: 700; letter-spacing: 2px; background: var(--yellow); color: #1a1426; padding: 4px 8px; font-size: 14px; }
+  .dot { width: 8px; height: 8px; display: inline-block; background: var(--mint); }
+  .dot.play { background: var(--pink); }
+  .empty { color: var(--muted); font-size: 13px; padding: 22px 16px; text-align: center; background: var(--panel); line-height: 1.7; --bc: var(--line); }
+  .tabs { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; padding: 3px; }
+  .tabs button { padding: 7px 12px; font-size: 13px; min-height: 38px; display: inline-flex; align-items: center; }
+  .tabs button.on { background: var(--yellow); color: #1a1426; }
+  .rank { display: flex; flex-direction: column; gap: 12px; padding: 3px; }
+  .rrow { display: grid; grid-template-columns: 30px 32px minmax(0,1fr) auto; align-items: center; gap: 10px; background: var(--panel); padding: 7px 12px; font-size: 14px; --bc: var(--panel); }
+  .rrow.me { --bc: var(--purple); background: #2a2148; }
+  .rrow .no { font-weight: 700; color: var(--muted); text-align: center; display: flex; justify-content: center; }
+  .rrow .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .rrow .val { font-weight: 700; color: var(--yellow); font-variant-numeric: tabular-nums; }
+  .rrow .sub { color: var(--muted); font-size: 11px; margin-left: 6px; font-weight: 400; }
+  .medal { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: #1a1426; font-weight: 700; }
+  .medal.m1 { background: var(--yellow); } .medal.m2 { background: #cfd3e6; } .medal.m3 { background: #e0955a; }
+
+  .lwrap { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 22px; align-items: start; }
+  .online { position: sticky; top: 14px; }
+  .online h3 { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; cursor: pointer; user-select: none; }
+  .online h3 .n { background: var(--mint); color: #0b2a20; padding: 0 6px; font-size: 11px; }
+  .online h3 .arr { margin-left: auto; font-size: 10px; }
+  .olist { display: flex; flex-direction: column; gap: 6px; }
+  .ou { display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; background: var(--panel2); font-size: 12px; }
+  .ou .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .ou .st { font-size: 10px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+  .ou .st i { width: 6px; height: 6px; background: var(--mint); display: inline-block; }
+  .ou.game .st i { background: var(--pink); }
+  .ou.join { cursor: pointer; } @media (hover: hover) { .ou.join:hover { outline: 2px solid var(--pink); } }
+  .ou.me { outline: 2px solid var(--purple); }
+  .omore { font-size: 12px; color: var(--muted); background: transparent; padding: 6px; width: 100%; min-height: 0; --bc: transparent; --dc: transparent; --in: 0 0 0 0 transparent; margin: 4px 0 0; }
+
+  .ohide { width: calc(100% - 6px); margin: 14px 3px 3px; font-size: 12px; min-height: 40px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; }
+  .ohide .sw { padding: 2px 8px; background: var(--ink); color: var(--muted); font-size: 11px; }
+  .ohide.on .sw { background: var(--mint); color: #0b2a20; }
+  .ohint { font-size: 11px; color: var(--muted); line-height: 1.6; margin-top: 10px; }
+  .modal { position: fixed; inset: 0; background: rgba(7,5,14,.75); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 40; }
+  .modal .box { width: 100%; max-width: 360px; text-align: center; padding: 22px 20px; animation: pop .2s steps(3); }
+  .modal h2 { font-size: 18px; margin-bottom: 18px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .modal .box.info { max-width: 380px; max-height: calc(100dvh - 40px); overflow-y: auto; }
+  .info-ic { width: 72px; height: 72px; background: var(--ink); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .modal .info h2 { margin-bottom: 6px; font-size: 20px; }
+  .info-desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .info-meta { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 16px; padding: 3px; }
+  .info-meta span { font-size: 11px; font-weight: 700; padding: 4px 8px; background: var(--panel2); color: var(--text); display: inline-flex; align-items: center; gap: 5px; }
+  .info-meta span.any { background: #123d33; color: var(--mint); } .info-meta span.same { background: #3d3412; color: var(--yellow); }
+  .info-rules { list-style: none; text-align: left; display: flex; flex-direction: column; gap: 10px; margin: 0 3px 20px; counter-reset: r; }
+  .info-rules li { counter-increment: r; display: grid; grid-template-columns: 24px 1fr; gap: 10px; font-size: 13px; line-height: 1.6; word-break: keep-all; align-items: start; }
+  .info-rules li::before { content: counter(r); width: 24px; height: 24px; background: var(--yellow); color: #1a1426; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .gate .field input.nick { text-align: center; }
+  .lang-note { margin-top: 18px; font-size: 11px; line-height: 1.8; color: var(--muted); word-break: keep-all; }
+
+  /* ── 모바일: 탭바를 화면 아래에 고정 (엄지 닿는 곳) ── */
+  @media (max-width: 760px) {
+    .lobby { padding: 0 12px calc(96px + env(safe-area-inset-bottom)); }
+    .lhead { margin: 0 -12px 18px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); position: sticky; top: 0; z-index: 10; --dp: 6px; gap: 8px; }
+    .lhead .logo .logo-t { font-size: 17px; }
+    .lhead .meChip { order: 3; }
+    .top-actions { gap: 10px; }
+    .top-actions .lbl { display: none; }
+    .ltabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); gap: 8px; --bc: var(--ink); --dp: 0px; }
+    .ltabs button { flex-direction: column; gap: 3px; font-size: 11px; padding: 6px 4px; min-height: 52px; }
+    .ltabs .badge { position: absolute; margin: -34px 0 0 30px; }
+    .ltabs button { position: relative; }
+    .lwrap { grid-template-columns: 1fr; gap: 18px; }
+    .online { position: static; order: -1; padding: 10px 12px; }
+    .online h3 { margin-bottom: 0; }
+    .online:not(.fold) h3 { margin-bottom: 10px; }
+    .online.fold .olist, .online.fold .omore, .online.fold .ohide, .online.fold .ohint { display: none; }
+    .games { grid-template-columns: 1fr; gap: 18px; }
+    .gcard { grid-template-columns: 56px minmax(0,1fr) auto; grid-template-rows: auto; padding: 12px; }
+    .gcard .gic { grid-row: auto; width: 56px; height: 56px; }
+    .gcard .cta { justify-self: end; padding: 8px 10px; }
+    .gcard .cta .lbl { display: none; }
+  }
+  @media (max-width: 360px) { .gcard { grid-template-columns: 48px minmax(0,1fr) auto; gap: 10px; } .gcard .gic { width: 48px; height: 48px; } }
+</style>
+</head>
+<body>
+
+<!-- 1) 언어 선택 (처음 한 번만) -->
+<div class="gate-wrap hidden" id="gateLang">
+  <div class="card gate">
+    <div class="logo-big"><i data-ic="pad" data-size="80"></i><span class="logo-t">DIDI <b>GAMES</b></span></div>
+    <p class="desc" data-t="pickLang"></p>
+    <div class="gate-btns">
+      <button data-lang="ko"><span class="flag">🇰🇷</span><span>한국어</span><small>한국어로 플레이</small></button>
+      <button data-lang="ja"><span class="flag">🇯🇵</span><span>日本語</span><small>日本語でプレイ</small></button>
+    </div>
+    <p class="lang-note">※ 일부 게임은 같은 언어끼리만 함께 플레이할 수 있어요.<br>※ 一部のゲームは同じ言語同士でのみ一緒に遊べます。</p>
+  </div>
+</div>
+
+<!-- 2) 닉네임 + 캐릭터 -->
+<div class="gate-wrap hidden" id="gateNick">
+  <div class="card gate">
+    <div class="logo-big"><i data-ic="pad" data-size="64"></i><span class="logo-t">DIDI <b>GAMES</b></span></div>
+    <p class="desc" data-t="appDesc"></p>
+    <div class="field"><label data-t="nickLabel"></label><input id="nickInput" class="nick" maxlength="10" data-tph="nickPh" autocomplete="off" enterkeyhint="go"></div>
+    <div class="field"><label data-t="avLabel"></label><div class="avpick" id="avPick"></div></div>
+    <button class="btn-main" id="enterBtn" style="width:100%;padding:14px" data-t="enter"></button>
+    <div class="warn" id="gateWarn" style="margin-top:14px"></div>
+    <p style="margin-top:18px"><button class="btn-ghost" id="langBack" style="padding:6px 12px;font-size:12px;min-height:36px"><i data-ic="globe" data-size="16"></i><span id="langNow2"></span></button></p>
+  </div>
+</div>
+
+<!-- 3) 로비 -->
+<div class="lobby hidden" id="lobby">
+  <div class="lhead card">
+    <span id="logoSlot"></span>
+    <button class="meChip" id="meChip"></button>
+    <div class="top-actions">
+      <button class="btn-ghost" id="langBtn"><i data-ic="globe" data-size="18"></i><span class="lbl" id="langNow"></span></button>
+      <button class="btn-yellow" id="joinBtn"><i data-ic="key" data-size="18"></i><span data-t="joinRoom"></span></button>
+    </div>
+  </div>
+
+  <div class="warn" id="lobbyWarn" style="margin-bottom:18px"></div>
+  <div class="lwrap">
+  <div>
+  <div class="ltabs card" id="ltabs">
+    <button data-tab="games"><i data-ic="pad" data-size="22"></i><span data-t="tabGames"></span></button>
+    <button data-tab="rooms"><i data-ic="door" data-size="18"></i><span data-t="tabRooms"></span> <span class="badge zero" id="roomCount">0</span></button>
+    <button data-tab="rank"><i data-ic="trophy" data-size="18"></i><span data-t="tabRank"></span></button>
+  </div>
+  <div class="sec" id="sec-games">
+    <div class="gsec">
+      <div class="gsec-h"><i data-ic="people" data-size="20"></i><h2 data-t="secMulti"></h2><small data-t="secMultiSub"></small></div>
+      <div class="games" id="gamesMulti"></div>
+    </div>
+    <div class="gsec">
+      <div class="gsec-h"><i data-ic="star" data-size="20"></i><h2 data-t="secSolo"></h2><small data-t="secSoloSub"></small></div>
+      <div class="games" id="gamesSolo"></div>
+    </div>
+  </div>
+
+  <div class="sec hidden" id="sec-rooms">
+    <div class="rooms" id="rooms"></div>
+  </div>
+
+  <div class="sec hidden" id="sec-rank">
+    <div class="tabs" id="rankTabs"></div>
+    <div class="rank" id="rank"></div>
+  </div>
+  </div>
+  <div class="card online fold" id="online"><h3 id="onlineHead"><i data-ic="people" data-size="16"></i><span data-t="onlineTitle"></span> <span class="n" id="onlineN">0</span><span class="arr" id="onlineArr">▼</span></h3><div class="olist" id="olist"></div><button class="omore hidden" id="omore"></button><button class="ohide btn-ghost" id="hideBtn"></button><p class="ohint hidden" id="hideHint" data-t="hiddenNote"></p></div>
+  </div>
+</div>
+
+<!-- 게임 소개 팝업 -->
+<div class="modal hidden" id="infoModal">
+  <div class="card box info">
+    <div class="info-ic" id="infoIc"></div>
+    <h2 id="infoName"></h2>
+    <p class="info-desc" id="infoDesc"></p>
+    <div class="info-meta" id="infoMeta"></div>
+    <ol class="info-rules" id="infoRules"></ol>
+    <div style="display:flex;gap:12px;padding:0 3px">
+      <button class="btn-ghost" id="infoCancel" style="flex:1">✕</button>
+      <button class="btn-main" id="infoGo" style="flex:3"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 방 참여 모달 -->
+<div class="modal hidden" id="joinModal">
+  <div class="card box">
+    <h2><i data-ic="key" data-size="22"></i><span data-t="joinTitle"></span></h2>
+    <div class="field" style="padding:0 3px"><input id="codeInput" class="code" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" enterkeyhint="go"></div>
+    <div class="warn" id="joinWarn" style="margin-bottom:14px"></div>
+    <div style="display:flex;gap:12px;padding:0 3px">
+      <button class="btn-ghost" id="joinCancel" style="flex:1">✕</button>
+      <button class="btn-main" id="joinGo" style="flex:2" data-t="joinGo"></button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  NG.addT({
+    ko: { tabGames: '게임', tabRooms: '열린 방', tabRank: '랭킹', appDesc: '친구들과 폰으로 즐기는 미니게임 모음!<br>닉네임과 캐릭터를 정하고 들어오세요.', notFound: '그 코드의 방을 찾을 수 없어요. 코드를 확인해 주세요.',
+      newRoom: '새 방 만들기', playNow: '바로 시작', makeRoom: '방 만들기', startNow: '시작하기', langAny: '언어 달라도 가능', langSame: '같은 언어끼리만', secMulti: '멀티 게임', secMultiSub: '방을 만들고 친구와 함께', secSolo: '1인 게임', secSoloSub: '혼자서 기록 도전',
+      hideMe: '내 접속 숨기기', hiddenNote: '지금은 접속 중 목록에 내가 보이지 않아요. 게임 방 안과 랭킹에는 그대로 보여요.', people: (a, b) => a === b ? `${a}명` : `${a}~${b}명`, solo: '혼자', edit: '변경', rankLabelPlays: '판' },
+    ja: { tabGames: 'ゲーム', tabRooms: '部屋', tabRank: 'ランキング', appDesc: '友達とスマホで遊ぶミニゲーム集！<br>ニックネームとキャラを決めて入ろう。', notFound: 'そのコードの部屋が見つかりません。コードを確認してください。',
+      newRoom: '部屋を作る', playNow: 'すぐ遊ぶ', makeRoom: '部屋を作る', startNow: 'スタート', langAny: '言語が違ってもOK', langSame: '同じ言語同士のみ', secMulti: 'マルチゲーム', secMultiSub: '部屋を作って友達と', secSolo: 'ひとりゲーム', secSoloSub: 'ひとりで記録に挑戦',
+      hideMe: '自分を非表示にする', hiddenNote: '今は接続中リストに表示されません。ゲームの部屋とランキングにはそのまま表示されます。', people: (a, b) => a === b ? `${a}人` : `${a}〜${b}人`, solo: 'ひとり', edit: '変更', rankLabelPlays: '回' },
+  });
+  const $ = (id) => document.getElementById(id);
+  let avSel = (NG.me && NG.me.av) || 0;
+  let hasLang = false; try { hasLang = !!localStorage.getItem('dm-ui'); } catch {}
+
+  // ── 로고: 누르면 로비 홈(게임 탭)으로
+  $('logoSlot').outerHTML = NG.logoHTML();
+  document.querySelector('.lhead .logo').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!NG.me) return;
+    $('joinModal').classList.add('hidden'); $('infoModal').classList.add('hidden'); $('gateLang').classList.add('hidden'); $('gateNick').classList.add('hidden');
+    showLobby(true); showTab('games'); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  // ── 언어 게이트
+  document.querySelectorAll('#gateLang button').forEach(b => b.addEventListener('click', () => { NG.setUi(b.dataset.lang); hasLang = true; refreshText(); $('gateLang').classList.add('hidden'); if (NG.me) showLobby(); else { $('gateNick').classList.remove('hidden'); $('nickInput').focus(); } }));
+  $('langBack').addEventListener('click', () => { $('gateNick').classList.add('hidden'); $('gateLang').classList.remove('hidden'); });
+  $('langBtn').addEventListener('click', () => { $('lobby').classList.add('hidden'); $('gateLang').classList.remove('hidden'); });
+
+  // ── 닉네임 게이트
+  function renderAvPick() {
+    const w = $('avPick'); w.innerHTML = '';
+    NG.AV.forEach((a, i) => {
+      const b = NG.el('button', i === avSel ? 'on' : ''); b.type = 'button';
+      b.insertAdjacentHTML('beforeend', NG.avatarSVG(i, 48)); b.appendChild(NG.el('small', '', a.name[NG.ui]));
+      b.addEventListener('click', () => { avSel = i; renderAvPick(); }); w.appendChild(b);
+    });
+  }
+  function enter() {
+    const n = $('nickInput').value.trim();
+    if (!n) { $('gateWarn').textContent = NG.t('needNick'); $('gateWarn').classList.add('on'); return; }
+    if ([...n].length < 2) { $('gateWarn').textContent = NG.t('nickRule'); $('gateWarn').classList.add('on'); return; }
+    NG.login(n, avSel); $('gateNick').classList.add('hidden'); showLobby();
+  }
+  $('enterBtn').addEventListener('click', enter);
+  $('nickInput').addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
+  $('meChip').addEventListener('click', () => { $('nickInput').value = NG.me ? NG.me.name : ''; avSel = NG.me ? NG.me.av : 0; renderAvPick(); $('lobby').classList.add('hidden'); $('gateNick').classList.remove('hidden'); });
+
+  // ── 접속자 패널
+  let onlineAll = [], onlineOpen = false, onlineOff = null;
+  function renderOnline() {
+    const w = $('olist'); w.innerHTML = ''; $('onlineN').textContent = onlineAll.length;
+    const show = onlineOpen ? onlineAll : onlineAll.slice(0, 5);
+    for (const u of show) {
+      const g = u.status !== 'lobby' ? NG.game(u.status) : null;
+      const canJoin = g && g.type !== 'solo' && u.code;
+      const row = NG.el('div', 'ou pxb' + (g ? ' game' : '') + (canJoin ? ' join' : '') + (u.uid === NG.me.uid ? ' me' : ''));
+      row.innerHTML = `${NG.avatarSVG(u.av, 24)}<span class="nm">${escapeHtml(u.name)}</span><span class="st"><i></i>${g ? NG.t('inGame', g.name[NG.ui]) : NG.t('online')}</span>`;
+      if (canJoin) { row.title = NG.t('joinThis'); row.addEventListener('click', () => goRoom(u.code, g.id)); }
+      w.appendChild(row);
+    }
+    const more = $('omore'); more.classList.toggle('hidden', onlineAll.length <= 5);
+    more.textContent = onlineOpen ? NG.t('less') : NG.t('more', onlineAll.length - 5);
+  }
+  $('omore').addEventListener('click', () => { onlineOpen = !onlineOpen; renderOnline(); });
+  function renderHide() { const on = NG.hidePresence; $('hideBtn').classList.toggle('on', on); $('hideBtn').innerHTML = `<span>${NG.t('hideMe')}</span><span class="sw">${on ? 'ON' : 'OFF'}</span>`; $('hideHint').classList.toggle('hidden', !on); }
+  $('hideBtn').addEventListener('click', () => { NG.setHidePresence(!NG.hidePresence); renderHide(); });
+  const syncArr = () => { $('onlineArr').textContent = $('online').classList.contains('fold') ? '▼' : '▲'; };
+  $('onlineHead').addEventListener('click', () => { $('online').classList.toggle('fold'); syncArr(); });
+  if (innerWidth > 760) $('online').classList.remove('fold'); syncArr();
+
+  // ── 로비 탭
+  let tab = 'games'; try { tab = sessionStorage.getItem('dm-tab') || 'games'; } catch {}
+  function showTab(name) { tab = name; try { sessionStorage.setItem('dm-tab', name); } catch {} document.querySelectorAll('#ltabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name)); for (const k of ['games', 'rooms', 'rank']) $('sec-' + k).classList.toggle('hidden', k !== name); if (name === 'rank') loadRank(); }
+  document.querySelectorAll('#ltabs button').forEach(b => b.addEventListener('click', () => { showTab(b.dataset.tab); window.scrollTo({ top: 0 }); }));
+  let roomsOff = null, rankGame = NG.GAMES[0].id;
+  function showLobby(quiet) {
+    $('lobby').classList.remove('hidden');
+    $('meChip').innerHTML = NG.avatarSVG(NG.me.av, 28) + `<span>${escapeHtml(NG.me.name)}</span>`;
+    renderGames(); watchRooms(); renderRankTabs();
+    if (quiet) return;
+    // 게임에서 랭킹 보기로 넘어온 경우 (?tab=rank&g=react)
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('tab')) { tab = qs.get('tab'); if (qs.get('g') && NG.game(qs.get('g'))) { rankGame = qs.get('g'); renderRankTabs(); } }
+    showTab(tab);
+    NG.setPresence('lobby'); if (!onlineOff) onlineOff = NG.watchPresence(list => { onlineAll = list; renderOnline(); });
+    const err = qs.get('err');
+    if (err) { $('lobbyWarn').textContent = err; $('lobbyWarn').classList.add('on'); }
+    if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+    const hc = NG.codeFromHash(); if (hc) { openJoin(hc); }
+  }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function renderGames() {
+    for (const type of ['multi', 'solo']) {
+      const w = $(type === 'multi' ? 'gamesMulti' : 'gamesSolo'); w.innerHTML = '';
+      NG.GAMES.filter(g => (g.type || 'multi') === type).forEach((g, i) => {
+        const c = NG.el('button', 'gcard ' + type); c.style.animationDelay = (i * 0.06) + 's';
+        const ppl = type === 'solo' ? NG.t('solo') : NG.t('people', g.min, g.max);
+        c.innerHTML = `<span class="gic">${NG.icon(g.icon, 40)}</span><span class="gtx"><b>${g.name[NG.ui]}</b><small>${g.desc[NG.ui]}</small><span class="meta">${NG.icon('people', 14)} ${ppl}</span></span>`
+          + `<span class="cta">${NG.icon('play', 10)}<span class="lbl">${NG.t(type === 'solo' ? 'playNow' : 'newRoom')}</span></span>`;
+        c.addEventListener('click', () => openInfo(g));
+        w.appendChild(c);
+      });
+      w.closest('.gsec').classList.toggle('hidden', !w.children.length);
+    }
+  }
+  function watchRooms() {
+    if (!NG.db || roomsOff) return;
+    const ref = NG.db.ref('lobby');
+    const fn = (s) => {
+      const all = s.val() || {}; const now = Date.now();
+      const list = Object.values(all).filter(r => r && r.game && NG.game(r.game) && NG.game(r.game).type !== 'solo' && now - (r.updatedAt || 0) < 3 * 3600 * 1000).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      $('roomCount').textContent = list.length; $('roomCount').classList.toggle('zero', !list.length);
+      const w = $('rooms'); w.innerHTML = '';
+      if (!list.length) { w.appendChild(NG.el('div', 'empty pxb', NG.t('noRooms'))); return; }
+      for (const r of list) {
+        const g = NG.game(r.game); const row = NG.el('div', 'rroom pxb');
+        row.innerHTML = `<span class="ic">${NG.icon(g.icon, 26)}</span><span class="info"><b>${g.name[NG.ui]}</b><small><span><span class="dot ${r.phase === 'playing' ? 'play' : ''}"></span>${NG.t(r.phase === 'playing' ? 'phase_playing' : 'phase_lobby')}</span><span>${NG.avatarSVG(r.hostAv, 16)} ${NG.t('hostTag', escapeHtml(r.hostName || '?'))}</span><span>${NG.t('rooms_people', r.count || 0, r.max || g.max)}</span><span>${g.anyLang ? NG.icon('globe', 14) : (r.lang === 'ja' ? '🇯🇵' : '🇰🇷')}</span></small></span><span class="code">${r.code}</span>`;
+        row.addEventListener('click', () => goRoom(r.code, r.game));
+        w.appendChild(row);
+      }
+    };
+    ref.on('value', fn); roomsOff = () => ref.off('value', fn);
+  }
+  // ── 게임 소개 팝업 (카드를 누를 때마다. 열린 방·코드·친구로 입장할 때는 안 뜸)
+  let infoGame = null;
+  function openInfo(g) {
+    infoGame = g; const solo = g.type === 'solo', L = NG.ui;
+    $('infoIc').innerHTML = NG.icon(g.icon, 48); $('infoName').textContent = g.name[L]; $('infoDesc').textContent = g.desc[L];
+    const any = solo || g.anyLang;
+    $('infoMeta').innerHTML = `<span>${NG.icon('people', 12)}${solo ? NG.t('solo') : NG.t('people', g.min, g.max)}</span><span>⏱ ${g.info.time[L]}</span><span class="${any ? 'any' : 'same'}">${NG.icon('globe', 12)}${NG.t(any ? 'langAny' : 'langSame')}</span>` + (g.info.tip ? `<span>${g.info.tip[L]}</span>` : '');
+    const ol = $('infoRules'); ol.innerHTML = ''; for (const r of g.info.rules[L]) ol.appendChild(NG.el('li', '', r));
+    $('infoGo').innerHTML = `${NG.icon('play', 12)}<span>${NG.t(solo ? 'startNow' : 'makeRoom')}</span>`;
+    $('infoModal').classList.remove('hidden');
+  }
+  $('infoCancel').addEventListener('click', () => $('infoModal').classList.add('hidden'));
+  $('infoModal').addEventListener('click', (e) => { if (e.target === $('infoModal')) $('infoModal').classList.add('hidden'); });
+  $('infoGo').addEventListener('click', () => { const g = infoGame; if (!g) return; location.href = g.type === 'solo' ? g.page : `${g.page}#${NG.genCode().toLowerCase()}`; });
+  window.addEventListener('pageshow', () => $('infoModal').classList.add('hidden'));
+  function goRoom(code, gameId) { const g = NG.game(gameId); if (g) location.href = `${g.page}#${code.toLowerCase()}`; }
+
+  // ── 방 참여 모달
+  function openJoin(code) { $('joinModal').classList.remove('hidden'); $('codeInput').value = code || ''; $('joinWarn').classList.remove('on'); setTimeout(() => $('codeInput').focus(), 50); }
+  $('joinBtn').addEventListener('click', () => openJoin(''));
+  $('joinCancel').addEventListener('click', () => { $('joinModal').classList.add('hidden'); history.replaceState(null, '', location.pathname); });
+  $('joinModal').addEventListener('click', (e) => { if (e.target === $('joinModal')) $('joinCancel').click(); });
+  async function tryJoin() {
+    const c = $('codeInput').value.trim().toUpperCase();
+    if (!/^[A-Z0-9]{4}$/.test(c)) { $('joinWarn').textContent = NG.t('badCode'); $('joinWarn').classList.add('on'); return; }
+    let game = null;
+    try { const r = (await NG.db.ref('lobby/' + c).once('value')).val(); if (r && r.game) game = r.game; } catch {}
+    if (!game) { // 로비 색인에 없으면 각 멀티 게임 방에서 직접 찾기
+      for (const g of NG.GAMES.filter(g => g.type !== 'solo')) { try { const p = (await NG.db.ref(`rooms/${g.id}/${c}/players`).once('value')).val(); if (p && Object.keys(p).length) { game = g.id; break; } } catch {} }
+    }
+    if (!game) { $('joinWarn').textContent = NG.t('notFound'); $('joinWarn').classList.add('on'); return; }
+    goRoom(c, game);
+  }
+  $('joinGo').addEventListener('click', tryJoin);
+  $('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') tryJoin(); });
+
+  // ── 랭킹
+  function renderRankTabs() {
+    const w = $('rankTabs'); w.innerHTML = '';
+    for (const g of NG.GAMES.filter(g => g.rank)) { const b = NG.el('button', g.id === rankGame ? 'on' : ''); b.innerHTML = `${NG.icon(g.icon, 16)}${g.name[NG.ui]}`; b.addEventListener('click', () => { rankGame = g.id; renderRankTabs(); loadRank(); }); w.appendChild(b); }
+  }
+  async function loadRank() {
+    const g = NG.game(rankGame); const w = $('rank'); w.innerHTML = '';
+    const field = g.rank.field, asc = !!g.rank.asc;
+    const rows = await NG.leaderboard(g.id, field, 20, asc);
+    if (!rows.length) { w.appendChild(NG.el('div', 'empty pxb', NG.t('rankEmpty'))); return; }
+    rows.forEach((r, i) => {
+      const row = NG.el('div', 'rrow pxb' + (r.uid === NG.me.uid ? ' me' : ''));
+      const no = NG.el('span', 'no'); no.innerHTML = i < 3 ? `<span class="medal m${i + 1}">${i + 1}</span>` : String(i + 1);
+      const av = NG.el('span'); av.innerHTML = NG.avatarSVG(r.av, 30);
+      const nm = NG.el('span', 'nm', r.name || r.uid);
+      const sub = NG.el('span', 'sub', g.rank.sub === 'acc' ? `${r.plays || 0}${NG.t('plays')}${r.acc != null ? ' · ' + NG.t('accuracy') + ' ' + r.acc + '%' : ''}` : g.type === 'solo' ? `${r.plays || 0}${NG.t('plays')}${r.best != null ? ' · ' + NG.t('best') + ' ' + r.best + 'ms' : ''}` : `${r.plays || 0}${NG.t('plays')} · ${r.score || 0}${NG.t('score')}`);
+      nm.appendChild(sub);
+      const val = NG.el('span', 'val', g.rank.unit ? `${r[field]}${typeof g.rank.unit === 'string' ? g.rank.unit : g.rank.unit[NG.ui]}` : `${r[field] || 0}${NG.t(field === 'wins' ? 'wins' : 'score')}`);
+      row.append(no, av, nm, val); w.appendChild(row);
+    });
+  }
+
+  // ── 시작: 언어를 고른 적이 있으면 게이트를 건너뛰고 바로 로비(또는 닉네임)로
+  function refreshText() { NG.applyText(); renderHide(); $('langNow').textContent = $('langNow2').textContent = NG.ui === 'ja' ? '日本語' : '한국어'; document.documentElement.lang = NG.ui; renderAvPick(); if (!$('lobby').classList.contains('hidden')) { renderGames(); renderRankTabs(); loadRank(); if (roomsOff) { roomsOff(); roomsOff = null; } watchRooms(); } }
+  refreshText();
+  if (!hasLang) $('gateLang').classList.remove('hidden');
+  else if (NG.me) showLobby();
+  else { $('gateNick').classList.remove('hidden'); }
+})();
+</script>
+</body>
+</html>

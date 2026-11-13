@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>누구 누구 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 누구 누구 — 첫인상 무기명 투표 (모바일 우선: 위는 주제, 가운데는 사람 고르기, 아래 고정 버튼) */
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top h1 { font-size: 15px; }
+  .top button { min-height: 36px; padding: 6px 12px; font-size: 13px; margin: 0; }
+  .wrap { flex: 1; width: 100%; max-width: 560px; margin: 0 auto; padding: 20px 15px 12px; display: flex; flex-direction: column; gap: 20px; }
+  .qcard { text-align: center; padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .qcard .lbl { font-size: 11px; color: var(--muted); font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .qcard .q { font-size: clamp(20px, 6vw, 28px); font-weight: 700; color: var(--yellow); line-height: 1.45; word-break: keep-all; text-shadow: 3px 3px 0 var(--ink); }
+  .qcard .sub { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .tbar { width: 100%; height: 10px; background: var(--ink); position: relative; }
+  .tbar i { position: absolute; inset: 0 auto 0 0; background: var(--mint); transition: width 1s linear; }
+  .tbar.hot i { background: var(--pink); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 14px; padding: 3px; }
+  .pbtn { display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 60px; text-align: left; font-size: 15px; background: var(--panel); margin: 0; }
+  .pbtn .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .pbtn.on { background: #3b3160; --bc: var(--yellow); --dc: #8a6d10; }
+  .pbtn.on .px { animation: bob .8s steps(2) infinite; }
+  .pbtn .tag { font-size: 10px; background: var(--ink); color: var(--muted); padding: 2px 6px; }
+  .pbtn.static { cursor: default; --dp: 0px; --in: 0 0 0 0 transparent; --bc: var(--line); }
+  .pbtn.static:active { transform: none; }
+  .tops { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; padding: 6px 3px; }
+  .topc { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 18px 12px; background: var(--panel); min-width: 130px; --bc: var(--yellow); --dc: var(--ink); --dp: 8px; animation: pop .35s steps(4) both; }
+  .topc .px { animation: bob 1s steps(2) infinite; }
+  .topc b { font-size: 17px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topc .v { font-size: 12px; font-weight: 700; padding: 3px 8px; background: var(--yellow); color: #1a1426; }
+  .crown { margin-bottom: -4px; }
+  .big-ic { animation: bob 1s steps(2) infinite; }
+  .note { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .endlist { display: flex; flex-direction: column; gap: 16px; padding: 3px; }
+  .endrow { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px; background: var(--panel); --dc: var(--ink); --dp: 6px; }
+  .endrow.me { --bc: var(--purple); }
+  .endrow b { display: block; font-size: 15px; margin-bottom: 6px; }
+  .endrow ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .endrow li { font-size: 12px; color: var(--text); line-height: 1.5; word-break: keep-all; display: grid; grid-template-columns: 14px 1fr; gap: 6px; }
+  .endrow li.none { color: var(--muted); }
+  .acts { position: sticky; bottom: 0; z-index: 5; width: 100%; max-width: 560px; margin: 0 auto; padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); background: var(--bg); display: flex; gap: 14px; }
+  .acts button { flex: 1; font-size: 17px; padding: 14px 10px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .msg2 { flex: 1; text-align: center; color: var(--muted); font-size: 13px; padding: 12px 6px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <h1><i data-ic="who" data-size="18"></i><span data-t="gameName"></span></h1>
+  <span class="code-chip" id="codeChip"></span>
+  <span class="pill" id="roundPill"></span>
+  <span class="grow"></span>
+  <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
+</div>
+<div class="wrap" id="view"></div>
+<div class="acts" id="acts"></div>
+<canvas id="confetti"></canvas>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+
+  // ───── 주제 목록: 한 줄에 '한국어 | 日本語'. 번호(줄 순서)가 곧 주제 ID라 언어가 달라도 같은 주제를 봄.
+  const parse = (txt) => txt.trim().split('\n').map(l => l.split('|').map(x => x.trim()));
+  const BASIC = parse(`
+아침형 인간일 것 같은 사람 | 朝型っぽい人
+방이 제일 깨끗할 것 같은 사람 | 部屋が一番きれいそうな人
+알람 없이도 일어날 것 같은 사람 | アラームなしで起きられそうな人
+가계부를 꼼꼼히 쓸 것 같은 사람 | 家計簿をきっちりつけていそうな人
+매일 운동할 것 같은 사람 | 毎日運動していそうな人
+집에 식물을 많이 키울 것 같은 사람 | 家で植物をたくさん育てていそうな人
+일기를 꾸준히 쓸 것 같은 사람 | 日記をずっと続けていそうな人
+냉장고가 항상 가득 차 있을 것 같은 사람 | 冷蔵庫がいつもいっぱいそうな人
+짐을 제일 가볍게 쌀 것 같은 사람 | 荷物が一番少なそうな人
+사진을 제일 많이 찍을 것 같은 사람 | 写真を一番たくさん撮りそうな人
+메신저 답장이 제일 빠를 것 같은 사람 | 返信が一番早そうな人
+계획표대로 움직일 것 같은 사람 | 予定表どおりに動きそうな人
+새벽까지 깨어 있을 것 같은 사람 | 夜中まで起きていそうな人
+커피 없이는 못 살 것 같은 사람 | コーヒーなしでは生きられなさそうな人
+물건을 오래오래 쓸 것 같은 사람 | 物を長く大事に使いそうな人
+집에서 요리를 자주 할 것 같은 사람 | 家でよく料理をしていそうな人
+주말마다 어딘가 나갈 것 같은 사람 | 週末は必ずどこかへ出かけていそうな人
+주말엔 집에서 푹 쉴 것 같은 사람 | 週末は家でのんびりしていそうな人
+책을 제일 많이 읽을 것 같은 사람 | 本を一番読んでいそうな人
+휴대폰 배터리가 항상 넉넉할 것 같은 사람 | スマホの充電がいつも満タンそうな人
+우산을 항상 챙겨 다닐 것 같은 사람 | いつも傘を持ち歩いていそうな人
+정리 정돈 영상을 즐겨 볼 것 같은 사람 | 片付け動画をよく見ていそうな人
+산책을 좋아할 것 같은 사람 | 散歩が好きそうな人
+기념일을 잘 챙길 것 같은 사람 | 記念日をちゃんと覚えていそうな人
+의외로 요리를 잘할 것 같은 사람 | 意外と料理が上手そうな人
+노래방에서 반전 매력이 있을 것 같은 사람 | カラオケで意外な一面を見せそうな人
+춤을 잘 출 것 같은 사람 | ダンスが上手そうな人
+그림을 잘 그릴 것 같은 사람 | 絵が上手そうな人
+악기를 다룰 줄 알 것 같은 사람 | 楽器が弾けそうな人
+게임을 제일 잘할 것 같은 사람 | ゲームが一番うまそうな人
+외국어를 금방 배울 것 같은 사람 | 外国語をすぐ覚えそうな人
+길을 제일 잘 찾을 것 같은 사람 | 道を覚えるのが一番得意そうな人
+암산이 빠를 것 같은 사람 | 暗算が速そうな人
+손글씨가 예쁠 것 같은 사람 | 字がきれいそうな人
+운동 신경이 좋을 것 같은 사람 | 運動神経がよさそうな人
+성대모사를 잘할 것 같은 사람 | モノマネが上手そうな人
+퀴즈 프로그램에 나가면 우승할 것 같은 사람 | クイズ番組で優勝しそうな人
+사진을 잘 찍을 것 같은 사람 | 写真を撮るのが上手そうな人
+고장 난 물건을 뚝딱 고칠 것 같은 사람 | 壊れた物をさっと直せそうな人
+선물을 센스 있게 고를 것 같은 사람 | プレゼント選びのセンスがよさそうな人
+발표를 제일 잘할 것 같은 사람 | 発表が一番上手そうな人
+맛집을 제일 많이 알 것 같은 사람 | おいしい店を一番知っていそうな人
+보드게임에서 잘 이길 것 같은 사람 | ボードゲームが強そうな人
+수영을 잘할 것 같은 사람 | 泳ぎが上手そうな人
+글을 잘 쓸 것 같은 사람 | 文章が上手そうな人
+가위바위보를 잘 이길 것 같은 사람 | じゃんけんが強そうな人
+동물이 잘 따를 것 같은 사람 | 動物に好かれそうな人
+아이들에게 인기 많을 것 같은 사람 | 子どもに人気がありそうな人
+무인도에서 끝까지 살아남을 것 같은 사람 | 無人島で最後まで生き残りそうな人
+복권에 당첨되면 제일 먼저 말해 줄 것 같은 사람 | 宝くじが当たったら真っ先に教えてくれそうな人
+좀비가 나타나도 침착할 것 같은 사람 | ゾンビが出ても落ち着いていそうな人
+타임머신이 있으면 미래로 갈 것 같은 사람 | タイムマシンがあったら未来へ行きそうな人
+타임머신이 있으면 과거로 갈 것 같은 사람 | タイムマシンがあったら過去へ行きそうな人
+갑자기 세계 여행을 떠날 것 같은 사람 | 突然世界旅行に出かけそうな人
+유튜버가 되면 성공할 것 같은 사람 | YouTuberになったら成功しそうな人
+가게를 차리면 잘될 것 같은 사람 | お店を開いたら繁盛しそうな人
+영화에 나오면 주인공일 것 같은 사람 | 映画に出たら主人公になりそうな人
+영화에 나오면 반전의 인물일 것 같은 사람 | 映画に出たら意外な黒幕になりそうな人
+마법 학교에 가면 우등생일 것 같은 사람 | 魔法学校に行ったら優等生になりそうな人
+우주여행에 제일 먼저 지원할 것 같은 사람 | 宇宙旅行に真っ先に応募しそうな人
+시골에서 살아도 잘 지낼 것 같은 사람 | 田舎暮らしでも楽しめそうな人
+외국에서 살아도 금방 적응할 것 같은 사람 | 海外に住んでもすぐなじめそうな人
+100년 전에 태어났어도 잘 살았을 것 같은 사람 | 100年前に生まれても元気に暮らしていそうな人
+퀴즈쇼 상금을 모두 기부할 것 같은 사람 | クイズの賞金を全部寄付しそうな人
+캠핑 가면 불을 제일 잘 피울 것 같은 사람 | キャンプで火おこしが一番うまそうな人
+조난당해도 길을 찾아낼 것 같은 사람 | 遭難しても道を見つけ出しそうな人
+로봇 친구가 생기면 제일 잘 지낼 것 같은 사람 | ロボットの友達ができたら一番仲良くなりそうな人
+왕이 되면 좋은 왕이 될 것 같은 사람 | 王様になったら良い王様になりそうな人
+탐정이 되면 사건을 잘 풀 것 같은 사람 | 探偵になったら事件を解決しそうな人
+예능에 나가면 인기 많을 것 같은 사람 | バラエティ番組に出たら人気が出そうな人
+동화 속에 들어가면 요정일 것 같은 사람 | おとぎ話の世界なら妖精になりそうな人
+하루만 투명 인간이 되면 장난을 칠 것 같은 사람 | 一日だけ透明人間になったらいたずらしそうな人
+고민 상담을 제일 잘해 줄 것 같은 사람 | 相談に一番うまく乗ってくれそうな人
+여행 계획을 다 짜 올 것 같은 사람 | 旅行の計画を全部立ててきそうな人
+비밀을 제일 잘 지켜 줄 것 같은 사람 | 秘密を一番守ってくれそうな人
+생일을 꼭 챙겨 줄 것 같은 사람 | 誕生日を必ず祝ってくれそうな人
+모임 분위기를 띄울 것 같은 사람 | 場を盛り上げてくれそうな人
+이야기를 제일 잘 들어 줄 것 같은 사람 | 話を一番よく聞いてくれそうな人
+칭찬을 잘해 줄 것 같은 사람 | よく褒めてくれそうな人
+아플 때 죽을 사다 줄 것 같은 사람 | 体調が悪いときに差し入れをくれそうな人
+이사할 때 도와주러 올 것 같은 사람 | 引っ越しを手伝いに来てくれそうな人
+새벽에 전화해도 받아 줄 것 같은 사람 | 夜中に電話しても出てくれそうな人
+모임 총무를 잘할 것 같은 사람 | 幹事が上手そうな人
+처음 보는 사람과도 금방 친해질 것 같은 사람 | 初対面の人ともすぐ仲良くなれそうな人
+친구가 제일 많을 것 같은 사람 | 友達が一番多そうな人
+오래된 친구를 소중히 할 것 같은 사람 | 昔からの友達を大切にしそうな人
+웃음소리가 제일 클 것 같은 사람 | 笑い声が一番大きそうな人
+리액션이 제일 좋을 것 같은 사람 | リアクションが一番よさそうな人
+같이 여행 가면 편할 것 같은 사람 | 一緒に旅行したら楽そうな人
+같이 일하면 든든할 것 같은 사람 | 一緒に働いたら頼もしそうな人
+맛있는 걸 나눠 줄 것 같은 사람 | おいしい物を分けてくれそうな人
+길 잃은 사람을 그냥 못 지나칠 것 같은 사람 | 道に迷った人を放っておけなさそうな人
+단체 사진을 찍자고 할 것 같은 사람 | 集合写真を撮ろうと言い出しそうな人
+편지를 써 줄 것 같은 사람 | 手紙を書いてくれそうな人
+싸움을 말릴 것 같은 사람 | けんかを止めてくれそうな人
+다음 모임을 먼저 잡을 것 같은 사람 | 次の集まりを最初に決めそうな人
+매운 음식을 제일 잘 먹을 것 같은 사람 | 辛い物が一番得意そうな人
+강아지보다 고양이파일 것 같은 사람 | 犬より猫派っぽい人
+고양이보다 강아지파일 것 같은 사람 | 猫より犬派っぽい人
+민트초코를 좋아할 것 같은 사람 | チョコミントが好きそうな人
+디저트 배가 따로 있을 것 같은 사람 | デザートは別腹そうな人
+공포 영화를 잘 볼 것 같은 사람 | ホラー映画が平気そうな人
+놀이기구를 제일 잘 탈 것 같은 사람 | 絶叫マシンが一番得意そうな人
+여름보다 겨울을 좋아할 것 같은 사람 | 夏より冬が好きそうな人
+바다보다 산을 좋아할 것 같은 사람 | 海より山が好きそうな人
+아이돌 노래를 다 외울 것 같은 사람 | アイドルの曲を全部歌えそうな人
+옛날 노래를 좋아할 것 같은 사람 | 昔の曲が好きそうな人
+만화책을 많이 가지고 있을 것 같은 사람 | 漫画をたくさん持っていそうな人
+슬픈 영화를 보면 바로 울 것 같은 사람 | 悲しい映画ですぐ泣きそうな人
+편의점 신상을 다 먹어 봤을 것 같은 사람 | コンビニの新商品を全部試していそうな人
+빵을 정말 좋아할 것 같은 사람 | パンが大好きそうな人
+라면을 제일 맛있게 끓일 것 같은 사람 | ラーメンを一番おいしく作れそうな人
+패션에 관심이 많을 것 같은 사람 | ファッションにこだわりがありそうな人
+전자 기기를 좋아할 것 같은 사람 | ガジェットが好きそうな人
+향수를 모을 것 같은 사람 | 香水を集めていそうな人
+문구류를 좋아할 것 같은 사람 | 文房具が好きそうな人
+온천을 좋아할 것 같은 사람 | 温泉が好きそうな人
+캐릭터 굿즈를 모을 것 같은 사람 | キャラクターグッズを集めていそうな人
+별 보는 걸 좋아할 것 같은 사람 | 星を見るのが好きそうな人
+비 오는 날을 좋아할 것 같은 사람 | 雨の日が好きそうな人
+`);
+  // 매운맛: 가볍게 놀리는 수준까지만 (외모·연애·돈 형편 같은 주제는 넣지 않음)
+  const SPICY = parse(`
+약속에 제일 늦을 것 같은 사람 | 待ち合わせに一番遅れそうな人
+길을 제일 잘 잃을 것 같은 사람 | 一番道に迷いそうな人
+물건을 자주 잃어버릴 것 같은 사람 | よく物をなくしそうな人
+답장을 제일 늦게 할 것 같은 사람 | 返信が一番遅そうな人
+알람을 열 개 맞춰도 못 일어날 것 같은 사람 | アラームを10個かけても起きられなさそうな人
+충동구매를 제일 많이 할 것 같은 사람 | 衝動買いが一番多そうな人
+방이 제일 어질러져 있을 것 같은 사람 | 部屋が一番散らかっていそうな人
+숙제를 마감 직전에 할 것 같은 사람 | 宿題を締め切り直前にやりそうな人
+몰래 간식을 숨겨 둘 것 같은 사람 | こっそりお菓子を隠していそうな人
+거짓말을 하면 바로 티 날 것 같은 사람 | 嘘をついたらすぐばれそうな人
+거짓말을 제일 잘할 것 같은 사람 | 嘘が一番うまそうな人
+마피아 게임에서 마피아를 잘할 것 같은 사람 | 人狼ゲームで人狼が上手そうな人
+게임에서 지면 제일 분해할 것 같은 사람 | ゲームで負けたら一番悔しがりそうな人
+회의 중에 딴생각할 것 같은 사람 | 会議中に別のことを考えていそうな人
+수업 시간에 졸았을 것 같은 사람 | 授業中に居眠りしていそうな人
+휴대폰을 제일 오래 볼 것 같은 사람 | スマホを一番長く見ていそうな人
+다이어트는 내일부터라고 할 것 같은 사람 | ダイエットは明日からと言いそうな人
+자기 전에 야식을 먹을 것 같은 사람 | 寝る前に夜食を食べていそうな人
+노래방 마이크를 안 놓을 것 같은 사람 | カラオケでマイクを離さなさそうな人
+단톡방 공지를 안 읽을 것 같은 사람 | グループの連絡を読んでいなさそうな人
+우산을 자주 두고 올 것 같은 사람 | 傘をよく置き忘れそうな人
+엉뚱한 질문을 제일 많이 할 것 같은 사람 | 一番とんちんかんな質問をしそうな人
+혼잣말을 많이 할 것 같은 사람 | 独り言が多そうな人
+귀신을 제일 무서워할 것 같은 사람 | お化けを一番怖がりそうな人
+벌레를 보면 제일 크게 소리 지를 것 같은 사람 | 虫を見たら一番大声を出しそうな人
+영화 스포일러를 해 버릴 것 같은 사람 | 映画のネタバレをしてしまいそうな人
+비밀을 못 참고 말해 버릴 것 같은 사람 | 秘密を我慢できずに話してしまいそうな人
+지갑을 두고 나올 것 같은 사람 | 財布を忘れて出かけそうな人
+택배 상자가 쌓여 있을 것 같은 사람 | 宅配の箱がたまっていそうな人
+읽지 않은 알림이 999개일 것 같은 사람 | 未読通知が999件ありそうな人
+새해 계획을 사흘 만에 그만둘 것 같은 사람 | 新年の目標を三日でやめそうな人
+자기 사진을 제일 많이 찍을 것 같은 사람 | 自撮りが一番多そうな人
+장난을 제일 많이 칠 것 같은 사람 | 一番いたずら好きそうな人
+아재 개그를 좋아할 것 같은 사람 | おやじギャグが好きそうな人
+먹을 걸 한 입만 달라고 할 것 같은 사람 | 一口ちょうだいと言いそうな人
+여행 가서 늦잠 잘 것 같은 사람 | 旅行先で寝坊しそうな人
+비밀번호를 자주 잊어버릴 것 같은 사람 | パスワードをよく忘れそうな人
+집에 가고 싶다고 제일 먼저 말할 것 같은 사람 | 一番先に帰りたいと言いそうな人
+분위기에 휩쓸려 계산할 것 같은 사람 | その場のノリでおごってしまいそうな人
+이 게임에서 제일 많이 뽑힐 것 같은 사람 | このゲームで一番選ばれそうな人
+`);
+  const QS = BASIC.concat(SPICY);                       // 기본 + 매운맛을 섞어서 출제
+  const qText = (qi) => (QS[qi] || ['?', '?'])[NG.ui === 'ja' ? 1 : 0];
+
+  NG.addT({
+    ko: { gameName: '누구 누구', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요.<br>노란 코드를 누르면 복사돼요.`,
+      need: (n) => `${n}명부터 시작할 수 있어요 (4명 이상 추천)`, waitHost: '방장이 시작하기를 기다리는 중…', startBtn: '게임 시작',
+      roundPill: (r, t) => `${r} / ${t}`, pickOne: '첫인상으로 한 명을 골라 주세요', anon: '무기명 투표 · 누가 골랐는지는 아무도 몰라요',
+      voteBtn: '투표하기', pickFirst: '한 명을 골라 주세요', votedMsg: (a, b) => `투표 완료! 다른 사람을 기다리는 중… (${a}/${b})`, nextJoin: '지금은 구경 중이에요. 다음 주제부터 참여해요!',
+      votes: (n) => `${n}표`, noVotes: '아무도 투표하지 않았어요', tie: '공동 1위!', nextIn: (s) => `다음 주제까지 ${s}초`, lastIn: (s) => `마지막 결과까지 ${s}초`,
+      endTitle: '오늘의 첫인상', endSub: '가장 많이 뽑힌 주제예요', mystery: '아직 미스터리한 사람', againBtn: '한 판 더', toLobby: '로비로', players: (n) => `참가자 ${n}명`, youTag: '나' },
+    ja: { gameName: 'だれだれ', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。<br>黄色いコードを押すとコピーできます。`,
+      need: (n) => `${n}人から始められます（4人以上がおすすめ）`, waitHost: 'ホストの開始を待っています…', startBtn: 'ゲーム開始',
+      roundPill: (r, t) => `${r} / ${t}`, pickOne: '第一印象で1人選んでください', anon: '匿名投票 · 誰が選んだかは分かりません',
+      voteBtn: '投票する', pickFirst: '1人選んでください', votedMsg: (a, b) => `投票完了！みんなを待っています… (${a}/${b})`, nextJoin: '今は見学中です。次のお題から参加します！',
+      votes: (n) => `${n}票`, noVotes: '誰も投票しませんでした', tie: '同率1位！', nextIn: (s) => `次のお題まで${s}秒`, lastIn: (s) => `最終結果まで${s}秒`,
+      endTitle: '今日の第一印象', endSub: '一番多く選ばれたお題です', mystery: 'まだミステリアスな人', againBtn: 'もう一回', toLobby: 'ロビーへ', players: (n) => `参加者 ${n}人`, youTag: '自分' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const GAME = 'who', TOTAL = 10, VOTE_SEC = 20, REVEAL_SEC = 7, MIN = 3;
+  document.title = `${t('gameName')} · DIDI Games`;
+
+  const code = NG.codeFromHash() || NG.genCode();
+  try { history.replaceState(null, '', '#' + code.toLowerCase()); } catch {}
+  const room = new NG.Room(GAME, code);
+  const fresh = () => ({ phase: 'lobby', gid: 0, round: 0, total: TOTAL, qi: -1, timeLeft: 0, cands: [], result: {}, tops: [], wins: {} });
+  let state = fresh();
+  // 득표수만 저장한다: tally/{gid_round}/{뽑힌 사람} = 표 수, voted/{gid_round}/{투표한 사람} = true. 누가 누구를 골랐는지는 어디에도 남기지 않음.
+  let tally = {}, voted = {}, used = new Set(), sel = null, myVoteKey = null, lastKey = '', celebrated = '';
+  const rkey = (st = state) => `${st.gid}_${st.round}`;
+  const me = () => NG.me.uid;
+  const arr = (x) => Array.isArray(x) ? x : Object.values(x || {});   // Firebase가 배열을 객체로 돌려줘도 안전하게
+  const cands = () => arr(state.cands);
+  const hasVoted = () => myVoteKey === rkey() || !!((voted[rkey()] || {})[me()]);
+  const votedCount = () => cands().filter(id => (voted[rkey()] || {})[id]).length;
+
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); $('codeChip').textContent = code; NG.bindCodeChip($('codeChip'), code);
+  const leave = async () => { try { await room.leave(); } catch {} location.href = 'index.html'; };
+  NG.bindLogo(document, () => room.leave());
+  $('leaveBtn').addEventListener('click', leave);
+
+  // ───── 방장: 진행 (1초마다)
+  function pickQuestion() {
+    let pool = QS.map((_, i) => i).filter(i => !used.has(String(i)));
+    if (!pool.length) { used = new Set(); room.ref.child('used').remove().catch(() => {}); pool = QS.map((_, i) => i); }
+    const qi = pool[Math.floor(Math.random() * pool.length)];
+    used.add(String(qi)); room.ref.child('used/' + qi).set(true).catch(() => {});
+    return qi;
+  }
+  function nextRound(st) {
+    const ids = room.active().map(p => p.id);
+    if (ids.length < 2) { room.pushState({ ...st, phase: 'end', timeLeft: 0 }); return; }
+    room.pushState({ ...st, phase: 'ask', round: st.round + 1, qi: pickQuestion(), cands: ids, timeLeft: VOTE_SEC, result: {}, tops: [] });
+  }
+  function startGame() {
+    if (!room.isHost || room.active().length < MIN) return;
+    room.ref.child('tally').remove().catch(() => {}); room.ref.child('voted').remove().catch(() => {});
+    nextRound({ ...fresh(), lang: state.lang || NG.ui, langSet: true, gid: Date.now() % 100000000 });
+  }
+  function toReveal(st) {
+    const res = {}; const tl = tally[rkey(st)] || {};
+    for (const id of arr(st.cands)) if (tl[id] > 0) res[id] = tl[id];
+    const max = Math.max(0, ...Object.values(res));
+    const tops = max > 0 ? Object.keys(res).filter(id => res[id] === max) : [];
+    const wins = { ...(st.wins || {}) };
+    for (const id of tops) wins[id] = (wins[id] ? wins[id] + ',' : '') + st.qi + ':' + max;   // "주제번호:표수,…"
+    room.pushState({ ...st, phase: 'reveal', timeLeft: REVEAL_SEC, result: res, tops, wins });
+  }
+  room.setHostLoop(() => {
+    const st = room.state; if (!room.isHost || !st) return;
+    if (st.phase === 'ask') {
+      const here = arr(st.cands).filter(id => room.players[id]);
+      const all = here.length > 0 && here.every(id => (voted[rkey(st)] || {})[id]);
+      if (all || st.timeLeft <= 1) toReveal(st); else room.pushState({ ...st, timeLeft: st.timeLeft - 1 });
+    } else if (st.phase === 'reveal') {
+      if (st.timeLeft <= 1) { if (st.round >= st.total) room.pushState({ ...st, phase: 'end', timeLeft: 0 }); else nextRound(st); }
+      else room.pushState({ ...st, timeLeft: st.timeLeft - 1 });
+    }
+  });
+
+  // ───── 투표
+  async function castVote() {
+    if (!sel || hasVoted() || state.phase !== 'ask' || !cands().includes(me()) || sel === me()) return;
+    const k = rkey(), target = sel; myVoteKey = k; render(true);
+    try { await room.ref.child(`tally/${k}/${target}`).transaction(v => (v || 0) + 1); await room.ref.child(`voted/${k}/${me()}`).set(true); } catch {}
+  }
+
+  // ───── 화면
+  const person = (id, size) => `${NG.avatarSVG(room.avOf(id), size)}`;
+  function render(force) {
+    const st = state, ph = st.phase;
+    $('roundPill').classList.toggle('hidden', ph === 'lobby' || ph === 'end');
+    $('roundPill').textContent = t('roundPill', st.round, st.total || TOTAL);
+    const key = [ph, rkey(st), hasVoted(), sel, votedCount(), room.playerList().map(p => p.id).join(','), room.isHost, NG.ui].join('|');
+    // 같은 화면이면 타이머만 갱신 (버튼을 매초 다시 그리지 않음)
+    if (!force && key === lastKey) {
+      const bar = $('tbarFill'); if (bar) { bar.style.width = Math.max(0, (st.timeLeft - 1) / (VOTE_SEC - 1) * 100) + '%'; bar.parentElement.classList.toggle('hot', st.timeLeft <= 5); }
+      const cd = $('cd'); if (cd) cd.textContent = t(st.round >= st.total ? 'lastIn' : 'nextIn', st.timeLeft);
+      return;
+    }
+    lastKey = key;
+    const view = $('view'), acts = $('acts'); view.innerHTML = ''; acts.innerHTML = '';
+
+    if (ph === 'lobby') {
+      const list = room.playerList();
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="big-ic">${NG.icon('who', 56)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div></div>`);
+      const g = NG.el('div', 'grid');
+      for (const p of list) { const b = NG.el('div', 'pbtn pxb static'); b.innerHTML = `${person(p.id, 36)}<span class="nm">${esc(room.nameOf(p.id))}</span>${p.id === room.hostId() ? `<span class="tag">${t('host')}</span>` : ''}`; g.appendChild(b); }
+      view.appendChild(g);
+      if (room.isHost) {
+        const ok = room.active().length >= MIN;
+        const b = NG.el('button', 'btn-main'); b.disabled = !ok; b.innerHTML = ok ? `${NG.icon('play', 14)}<span>${t('startBtn')}</span>` : `<span style="font-size:13px">${t('need', MIN)}</span>`;
+        b.addEventListener('click', startGame); acts.appendChild(b);
+      } else acts.appendChild(NG.el('div', 'msg2', room.active().length >= MIN ? t('waitHost') : t('need', MIN)));
+    }
+
+    else if (ph === 'ask') {
+      const inGame = cands().includes(me()), done = hasVoted();
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="lbl">Q${st.round}</div><div class="q">${esc(qText(st.qi))}</div><div class="tbar${st.timeLeft <= 5 ? ' hot' : ''}"><i id="tbarFill" style="width:${Math.max(0, (st.timeLeft - 1) / (VOTE_SEC - 1) * 100)}%"></i></div><div class="sub">${t('pickOne')}<br>${t('anon')}</div></div>`);
+      const g = NG.el('div', 'grid');
+      for (const id of cands()) {
+        const mine = id === me();
+        const b = NG.el('button', 'pbtn' + (sel === id ? ' on' : '')); b.disabled = mine || done || !inGame;
+        b.innerHTML = `${person(id, 40)}<span class="nm">${esc(room.nameOf(id))}</span>${mine ? `<span class="tag">${t('youTag')}</span>` : ''}`;
+        b.addEventListener('click', () => { sel = id; render(true); });
+        g.appendChild(b);
+      }
+      view.appendChild(g);
+      if (!inGame) acts.appendChild(NG.el('div', 'msg2', t('nextJoin')));
+      else if (done) acts.appendChild(NG.el('div', 'msg2', t('votedMsg', votedCount(), cands().length)));
+      else { const b = NG.el('button', 'btn-main', sel ? t('voteBtn') : t('pickFirst')); b.disabled = !sel; b.addEventListener('click', castVote); acts.appendChild(b); }
+    }
+
+    else if (ph === 'reveal') {
+      const tops = arr(st.tops), res = st.result || {};
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="lbl">Q${st.round}</div><div class="q">${esc(qText(st.qi))}</div>${tops.length > 1 ? `<div class="lbl" style="color:var(--mint)">${t('tie')}</div>` : ''}</div>`);
+      if (!tops.length) view.appendChild(NG.el('div', 'note', t('noVotes')));
+      else {
+        const w = NG.el('div', 'tops');
+        tops.forEach((id, i) => { const c = NG.el('div', 'topc pxb'); c.style.animationDelay = (i * 0.12) + 's'; c.innerHTML = `<span class="crown">${NG.icon('crown', 30)}</span>${person(id, 72)}<b>${esc(room.nameOf(id))}</b><span class="v">${t('votes', res[id] || 0)}</span>`; w.appendChild(c); });
+        view.appendChild(w);
+        if (tops.includes(me()) && celebrated !== rkey(st)) { celebrated = rkey(st); NG.confetti(); }
+      }
+      const cd = NG.el('div', 'msg2', t(st.round >= st.total ? 'lastIn' : 'nextIn', st.timeLeft)); cd.id = 'cd'; acts.appendChild(cd);
+    }
+
+    else if (ph === 'end') {
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="big-ic">${NG.icon('trophy', 48)}</div><div class="q">${t('endTitle')}</div><div class="sub">${t('endSub')}</div></div>`);
+      const wins = st.wins || {}; const ids = [...new Set([...room.playerList().map(p => p.id), ...Object.keys(wins)])];
+      const titles = (id) => String(wins[id] || '').split(',').filter(Boolean).map(x => x.split(':').map(Number)).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      ids.sort((a, b) => titles(b).length - titles(a).length);
+      const w = NG.el('div', 'endlist');
+      for (const id of ids) {
+        const ts = titles(id); const row = NG.el('div', 'endrow pxb' + (id === me() ? ' me' : ''));
+        row.innerHTML = `${person(id, 44)}<div><b>${esc(room.nameOf(id))}</b><ul>${ts.length ? ts.map(([qi]) => `<li>${NG.icon('star', 12)}<span>${esc(qText(qi))}</span></li>`).join('') : `<li class="none">${NG.icon('who', 12)}<span>${t('mystery')}</span></li>`}</ul></div>`;
+        w.appendChild(row);
+      }
+      view.appendChild(w);
+      if (room.isHost) { const b = NG.el('button', 'btn-main', t('againBtn')); b.disabled = room.active().length < MIN; b.addEventListener('click', startGame); acts.appendChild(b); }
+      const h = NG.el('button', 'btn-ghost', t('toLobby')); h.addEventListener('click', leave); acts.appendChild(h);
+    }
+  }
+
+  room.on('state', (s) => { const prev = rkey(); state = { ...fresh(), ...(s || {}) }; if (rkey() !== prev) sel = null; render(); });
+  room.on('players', () => render());
+
+  room.join(fresh()).then(r => {
+    if (r.error) { location.href = 'index.html?err=' + encodeURIComponent(r.error); return; }
+    room.listen(room.ref.child('tally'), 'value', (s) => { tally = s.val() || {}; });
+    room.listen(room.ref.child('voted'), 'value', (s) => { voted = s.val() || {}; render(); });
+    room.listen(room.ref.child('used'), 'value', (s) => { used = new Set(Object.keys(s.val() || {})); });
+    render(true);
+  });
+  render(true);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>Draw Mind · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .word { font-weight: 900; font-size: 20px; color: var(--text); display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; perspective: 400px; }
+  .word.secret { color: var(--mint); letter-spacing: 2px; }
+  .word .box {
+    display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 44px; margin: 3px 0;
+    background: var(--ink); box-shadow: 0 -3px 0 0 var(--line), 0 3px 0 0 var(--line), -3px 0 0 0 var(--line), 3px 0 0 0 var(--line);
+    font-size: 22px; font-weight: 900; color: #1a1a1a; position: relative; transform-style: preserve-3d;
+  }
+  .word .box::after { content: ''; position: absolute; width: 6px; height: 6px; background: var(--muted); opacity: .35; animation: blink 1.6s steps(2) infinite; }
+  .word .box.filled { background: var(--yellow); box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink); animation: flip .4s steps(4); }
+  .word .box.filled::after { display: none; }
+  @keyframes blink { 0%,100% { opacity: .2; transform: scale(.8); } 50% { opacity: .55; transform: scale(1); } }
+  @keyframes flip { 0% { transform: rotateX(90deg); opacity: 0; } 60% { transform: rotateX(-15deg); opacity: 1; } 100% { transform: rotateX(0); } }
+  .word .meta { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0; margin-left: 6px; padding: 4px 8px; background: var(--panel2); }
+  @media (max-width: 760px) {
+    .word .box { width: 30px; height: 38px; font-size: 18px; } .word { gap: 9px; }
+    /* 힌트 칸은 항상 자기 줄을 차지 → 힌트가 나타나도 상단바 높이가 안 바뀜 */
+    /* 그리는 사람: 정답 입력칸을 숨기고(최근 채팅 2줄만 남김) 그림판을 크게 */
+    body.can-draw .quick form { display: none; }
+    body.can-draw .quick { padding: 6px 10px; gap: 4px; }
+    body.can-draw .quick:has(.qlog:empty) { display: none; }
+    /* 게임 중: 상단바에서 덜 중요한 것 숨겨 줄 수를 줄임 */
+    body.playing #langBadge, body.playing #status { display: none; }
+    body.playing .top { gap: 5px; }
+    .top .word { order: 20; flex: 0 0 100%; min-height: 46px; justify-content: center; font-size: 16px; }
+  }
+  /* 그리는 사람: 그림판 위에서는 스크롤·확대·당겨서 새로고침이 일어나지 않게 */
+  body.can-draw .stage, body.can-draw canvas#cv { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  html.drawing, html.drawing body { overscroll-behavior: none; }
+
+  canvas#cv { width: 100%; height: 100%; display: block; touch-action: none; }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .tools:empty { display: none; }
+  .tools { gap: 12px; padding: 3px; }
+  .swatch { width: 32px; height: 32px; cursor: pointer; box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink); }
+  .swatch.on { transform: translateY(-4px); box-shadow: 0 -3px 0 0 #fff, 0 3px 0 0 #fff, -3px 0 0 0 #fff, 3px 0 0 0 #fff, 0 9px 0 0 var(--ink); }
+  .size { width: 38px; height: 38px; background: var(--panel2); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 -3px 0 0 var(--ink), 0 3px 0 0 var(--ink), -3px 0 0 0 var(--ink), 3px 0 0 0 var(--ink); }
+  .size.on { box-shadow: 0 -3px 0 0 #fff, 0 3px 0 0 #fff, -3px 0 0 0 #fff, 3px 0 0 0 #fff; }
+  .size i { display: block; background: #fff; }
+  .pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; width: 100%; max-width: 520px; }
+  .pick { gap: 14px; padding: 3px; }
+  .pick button { background: var(--panel2); padding: 12px 10px; font-size: 16px; display: flex; flex-direction: column; gap: 3px; align-items: center; min-width: 0; }
+  .pick button span { word-break: keep-all; line-height: 1.25; }
+  @media (hover: hover) { .pick button:hover { --bc: var(--yellow); } }
+  .pick button small { font-size: 12px; font-weight: 700; }
+  .lv0 small { color: var(--mint); } .lv1 small { color: var(--yellow); } .lv2 small { color: var(--pink); }
+  @media (max-width: 760px) {
+    .pick { gap: 10px; margin-top: 4px; } .pick button { padding: 8px 6px; font-size: 14px; gap: 1px; min-height: 0; } .pick button small { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <h1><i data-ic="palette" data-size="18"></i>Draw Mind</h1>
+  <span class="code-chip" id="codeChip">----</span>
+  <span class="pill" id="roundPill"></span>
+  <span class="pill timer" id="timer">--</span>
+  <span class="word" id="word"></span>
+  <span class="grow"></span>
+  <span class="status" id="status"></span>
+  <span class="pill" id="langBadge"></span>
+  <span class="pill hidden" id="timeSet">⏱ <select id="timeSel" autocomplete="off"><option value="60">1:00</option><option value="120" selected>2:00</option><option value="180">3:00</option></select></span>
+  <button class="btn-main hidden" id="startBtn" style="padding:8px 16px;font-size:16px"></button>
+  <button class="btn-danger hidden" id="stopBtn" style="padding:8px 12px;font-size:13px"></button>
+  <button class="btn-ghost" id="leaveBtn" style="padding:8px 12px;font-size:13px" data-t="leave"></button>
+</div>
+
+<div class="main">
+  <div class="board">
+    <div class="stage white"><canvas id="cv" width="800" height="600"></canvas><div class="banner" id="banner"><h2></h2><p id="bannerText"></p></div></div>
+    <div class="tools" id="tools"></div>
+    <div class="quick card" id="quick">
+      <div class="qlog" id="qlog"></div>
+      <form id="quickForm" autocomplete="off"><input id="quickInput" maxlength="40" enterkeyhint="send"><button class="btn-main" type="submit" data-t="send"></button></form>
+    </div>
+  </div>
+  <div class="side">
+    <div class="card"><h3><span data-t="players"></span> <span id="pcount"></span></h3><div class="players" id="players"></div></div>
+    <div class="card chat"><h3 data-t="chatTitle"></h3><div class="log" id="log"></div>
+      <form id="chatForm" autocomplete="off"><input id="chatInput" maxlength="40"><button class="btn-sub" type="submit" style="padding:8px 14px;font-size:15px" data-t="send"></button></form></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { round: (r, t, d) => `${r}/${t} 라운드 · ✏️ ${d}`, picking: '제시어 고르는 중…', answerTag: '정답!', drawing: '✏️ 그리는 중',
+      pickTitle: '✏️ 그릴 제시어를 고르세요!', pickNote: (s) => `${s}초 안에 고르지 않으면 첫 번째로 자동 선택돼요`, pickingBy: (d) => `✏️ ${d}님이 제시어를 고르는 중…`, pleaseWait: '잠시만 기다려 주세요!',
+      correctBy: (n) => `🎉 ${n}님 정답!`, timeUp: '⏰ 시간 초과!', turn: (r, n) => `── ${r}라운드: ${n}님 차례 ──`, close: '(아깝다!)', noHint: '그리는 사람은 정답을 말할 수 없어요 🤫',
+      phNoHint: '그리는 중엔 힌트 금지!', phAnswer: '정답 입력 · 채팅', clear: '🧹 전체 지우기', chars: (n) => `${n}글자`, levels: ['쉬움', '보통', '어려움'] },
+    ja: { round: (r, t, d) => `${r}/${t} ラウンド · ✏️ ${d}`, picking: 'お題を選んでいます…', answerTag: '正解！', drawing: '✏️ 描き中',
+      pickTitle: '✏️ 描くお題を選んでください！', pickNote: (s) => `${s}秒以内に選ばないと最初のお題が自動で選ばれます`, pickingBy: (d) => `✏️ ${d}さんがお題を選んでいます…`, pleaseWait: '少々お待ちください！',
+      correctBy: (n) => `🎉 ${n}さん正解！`, timeUp: '⏰ 時間切れ！', turn: (r, n) => `── ラウンド${r}: ${n}さんの番 ──`, close: '(おしい！)', noHint: '描く人は答えを言えません 🤫',
+      phNoHint: '描いている間はヒント禁止！', phAnswer: '回答を入力・チャット', clear: '🧹 全部消す', chars: (n) => `${n}文字`, levels: ['かんたん', 'ふつう', 'むずかしい'] },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t, norm = NG.norm;
+  const GAME = 'draw';
+  const REVEAL_SECONDS = 5, PICK_SECONDS = 15, ROUNDS_PER_PLAYER = 2;
+  const COLORS = ['#2d2a4a', '#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa', '#8d6e63', '#ffffff'];
+  const SIZES = [4, 9, 18];
+  const LEVEL_PTS = [10, 15, 25];
+  const CAT = { '동물':'動物','음식':'食べ物','사물':'物','자연':'自然','장소':'場所','행동':'動作','캐릭터':'キャラ','직업·사물':'職業・物','추상·개념':'抽象','과학·세계':'科学・世界','명소·문화':'名所・文化','탈것':'乗り物','과일·채소':'果物・野菜','몸·옷':'体・服','스포츠':'スポーツ','감정·상태':'気持ち','학교·회사':'学校・会社','놀이·취미':'遊び・趣味','상황':'シチュエーション','역사·신화':'歴史・神話' };
+  const CAT_R = Object.fromEntries(Object.entries(CAT).map(([k, v]) => [v, k]));
+  const catName = (c) => (NG.ui === 'ja' ? (CAT[c] || c) : (CAT_R[c] || c));
+  const WORDS = {
+    ko: [
+      { '동물': ['고양이', '강아지', '코끼리', '기린', '펭귄', '거북이', '문어', '토끼', '고래', '달팽이', '햄스터', '악어', '부엉이', '개구리', '상어', '다람쥐', '해파리', '병아리', '돼지', '얼룩말'],
+        '음식': ['피자', '김밥', '라면', '떡볶이', '햄버거', '초밥', '치킨', '아이스크림', '수박', '바나나', '붕어빵', '팝콘', '도넛', '계란프라이', '핫도그', '케이크', '만두', '옥수수', '사과', '포도'],
+        '사물': ['우산', '안경', '자전거', '기타', '헤드폰', '냉장고', '선풍기', '열쇠', '칫솔', '시계', '모자', '텐트', '풍선', '리모컨', '가위', '연필', '컵', '의자', '침대', '신발'],
+        '자연': ['해', '달', '별', '구름', '무지개', '번개', '나무', '꽃', '산', '바다', '눈사람', '화산', '폭포', '섬', '불'] },
+      { '장소': ['놀이공원', '해수욕장', '도서관', '지하철역', '편의점', '캠핑장', '영화관', '우주정거장', '목욕탕', '사막', '등대', 'PC방', '헬스장', '미용실', '치과', '공항', '동물원', '수영장', '결혼식장', '교도소'],
+        '행동': ['춤추기', '낚시', '요가', '스키', '잠자기', '줄넘기', '양치질', '셀카', '볼링', '수영', '노래방', '등산', '요리', '태권도', '재채기', '딸꾹질', '하품', '팔굽혀펴기', '프러포즈', '물구나무'],
+        '캐릭터': ['산타클로스', '유령', '해적', '로봇', '마법사', '외계인', '좀비', '인어공주', '슈퍼히어로', '뱀파이어', '닌자', '우주비행사', '소방관', '허수아비', '유니콘', '용', '공룡', '카멜레온', '스핑크스', '미라'],
+        '직업·사물': ['의사', '경찰', '요리사', '선생님', '피아노', '드럼', '망원경', '현미경', '드라이기', '청소기', '세탁기', '선인장', '해바라기', '지구본', '돋보기', '저울', '주사기', '캠코더', '신호등', '소화기'] },
+      { '추상·개념': ['사춘기', '월요병', '첫사랑', '눈치', '밀당', '꼰대', '불면증', '데자뷰', '텔레파시', '스포일러', '층간소음', '다이어트', '야근', '소개팅', '수능', '월급날', '멀미', '중력', '시차', '짝사랑'],
+        '과학·세계': ['블랙홀', '자외선', '광합성', '진화론', '인공지능', '지구온난화', '타임머신', '오로라', '빙하', '화석', '바이러스', '백신', 'DNA', '전자레인지', '비행기 모드', '와이파이', '블루투스', '민주주의', '인플레이션', '주식'],
+        '명소·문화': ['피라미드', '에펠탑', '자유의 여신상', '모나리자', '만리장성', '콜로세움', '한글', '태극기', '김장', '추석', '제사', '수학여행', '군대', '아이돌', '노래방 점수', '복권 당첨', '물수제비', '귀신의 집', '사이버펑크', '올림픽'] },
+    ],
+    ja: [
+      { '動物': [['猫','ねこ'],['犬','いぬ'],['象','ぞう'],['キリン','きりん'],['ペンギン','ぺんぎん'],['亀','かめ'],['タコ','たこ'],['うさぎ','うさぎ','兎'],['クジラ','くじら','鯨'],['カタツムリ','かたつむり'],['ハムスター','はむすたー'],['ワニ','わに'],['フクロウ','ふくろう'],['カエル','かえる','蛙'],['サメ','さめ','鮫'],['リス','りす'],['クラゲ','くらげ'],['ひよこ','ひよこ'],['豚','ぶた'],['シマウマ','しまうま']],
+        '食べ物': [['ピザ','ぴざ'],['おにぎり','おにぎり'],['ラーメン','らーめん'],['たこ焼き','たこやき'],['ハンバーガー','はんばーがー'],['寿司','すし'],['からあげ','からあげ','唐揚げ'],['アイスクリーム','あいすくりーむ','アイス'],['スイカ','すいか','西瓜'],['バナナ','ばなな'],['たい焼き','たいやき'],['ポップコーン','ぽっぷこーん'],['ドーナツ','どーなつ'],['目玉焼き','めだまやき'],['ホットドッグ','ほっとどっぐ'],['ケーキ','けーき'],['餃子','ぎょうざ'],['とうもろこし','とうもろこし','コーン'],['りんご','りんご','林檎'],['ぶどう','ぶどう','葡萄']],
+        '物': [['傘','かさ'],['メガネ','めがね','眼鏡'],['自転車','じてんしゃ'],['ギター','ぎたー'],['ヘッドホン','へっどほん'],['冷蔵庫','れいぞうこ'],['扇風機','せんぷうき'],['鍵','かぎ'],['歯ブラシ','はぶらし'],['時計','とけい'],['帽子','ぼうし'],['テント','てんと'],['風船','ふうせん'],['リモコン','りもこん'],['ハサミ','はさみ'],['鉛筆','えんぴつ'],['コップ','こっぷ'],['椅子','いす'],['ベッド','べっど'],['靴','くつ']],
+        '自然': [['太陽','たいよう'],['月','つき'],['星','ほし'],['雲','くも'],['虹','にじ'],['雷','かみなり'],['木','き'],['花','はな'],['山','やま'],['海','うみ'],['雪だるま','ゆきだるま'],['火山','かざん'],['滝','たき'],['島','しま'],['火','ひ']] },
+      { '場所': [['遊園地','ゆうえんち'],['ビーチ','びーち','海水浴場'],['図書館','としょかん'],['駅','えき'],['コンビニ','こんびに'],['キャンプ場','きゃんぷじょう'],['映画館','えいがかん'],['宇宙ステーション','うちゅうすてーしょん'],['銭湯','せんとう','温泉'],['砂漠','さばく'],['灯台','とうだい'],['ネットカフェ','ねっとかふぇ','ネカフェ'],['ジム','じむ'],['美容院','びよういん'],['歯医者','はいしゃ'],['空港','くうこう'],['動物園','どうぶつえん'],['プール','ぷーる'],['結婚式','けっこんしき'],['刑務所','けいむしょ']],
+        '動作': [['ダンス','だんす'],['釣り','つり'],['ヨガ','よが'],['スキー','すきー'],['寝る','ねる','睡眠'],['縄跳び','なわとび'],['歯磨き','はみがき'],['自撮り','じどり'],['ボウリング','ぼうりんぐ'],['水泳','すいえい'],['カラオケ','からおけ'],['登山','とざん'],['料理','りょうり'],['空手','からて'],['くしゃみ','くしゃみ'],['しゃっくり','しゃっくり'],['あくび','あくび'],['腕立て伏せ','うでたてふせ'],['プロポーズ','ぷろぽーず'],['逆立ち','さかだち']],
+        'キャラ': [['サンタクロース','さんたくろーす','サンタ'],['幽霊','ゆうれい','おばけ'],['海賊','かいぞく'],['ロボット','ろぼっと'],['魔法使い','まほうつかい'],['宇宙人','うちゅうじん'],['ゾンビ','ぞんび'],['人魚','にんぎょ'],['ヒーロー','ひーろー'],['吸血鬼','きゅうけつき','バンパイア'],['忍者','にんじゃ'],['宇宙飛行士','うちゅうひこうし'],['消防士','しょうぼうし'],['かかし','かかし'],['ユニコーン','ゆにこーん'],['ドラゴン','どらごん','竜'],['恐竜','きょうりゅう'],['カメレオン','かめれおん'],['スフィンクス','すふぃんくす'],['ミイラ','みいら']],
+        '職業・物': [['医者','いしゃ'],['警察','けいさつ','警官'],['シェフ','しぇふ','料理人'],['先生','せんせい'],['ピアノ','ぴあの'],['ドラム','どらむ'],['望遠鏡','ぼうえんきょう'],['顕微鏡','けんびきょう'],['ドライヤー','どらいやー'],['掃除機','そうじき'],['洗濯機','せんたくき'],['サボテン','さぼてん'],['ひまわり','ひまわり','向日葵'],['地球儀','ちきゅうぎ'],['虫眼鏡','むしめがね'],['体重計','たいじゅうけい'],['注射','ちゅうしゃ'],['ビデオカメラ','びでおかめら'],['信号機','しんごうき','信号'],['消火器','しょうかき']] },
+      { '抽象': [['思春期','ししゅんき'],['五月病','ごがつびょう'],['初恋','はつこい'],['空気を読む','くうきをよむ'],['駆け引き','かけひき'],['不眠症','ふみんしょう'],['デジャブ','でじゃぶ'],['テレパシー','てれぱしー'],['ネタバレ','ねたばれ'],['騒音','そうおん'],['ダイエット','だいえっと'],['残業','ざんぎょう'],['合コン','ごうこん'],['受験','じゅけん'],['給料日','きゅうりょうび'],['乗り物酔い','のりものよい'],['重力','じゅうりょく'],['時差ボケ','じさぼけ'],['片思い','かたおもい'],['二日酔い','ふつかよい']],
+        '科学・世界': [['ブラックホール','ぶらっくほーる'],['紫外線','しがいせん'],['光合成','こうごうせい'],['進化論','しんかろん'],['人工知能','じんこうちのう','AI'],['地球温暖化','ちきゅうおんだんか'],['タイムマシン','たいむましん'],['オーロラ','おーろら'],['氷河','ひょうが'],['化石','かせき'],['ウイルス','ういるす'],['ワクチン','わくちん'],['DNA','DNA','でぃーえぬえー'],['電子レンジ','でんしれんじ'],['機内モード','きないもーど'],['Wi-Fi','Wi-Fi','わいふぁい','wifi'],['Bluetooth','Bluetooth','ぶるーとぅーす'],['民主主義','みんしゅしゅぎ'],['インフレ','いんふれ'],['株','かぶ']],
+        '名所・文化': [['ピラミッド','ぴらみっど'],['エッフェル塔','えっふぇるとう'],['自由の女神','じゆうのめがみ'],['モナリザ','もなりざ'],['万里の長城','ばんりのちょうじょう'],['コロッセオ','ころっせお'],['富士山','ふじさん'],['鳥居','とりい'],['花見','はなみ'],['お正月','おしょうがつ','正月'],['盆踊り','ぼんおどり'],['修学旅行','しゅうがくりょこう'],['相撲','すもう'],['アイドル','あいどる'],['カラオケ採点','からおけさいてん'],['宝くじ','たからくじ'],['水切り','みずきり'],['お化け屋敷','おばけやしき'],['サイバーパンク','さいばーぱんく'],['オリンピック','おりんぴっく']] },
+    ],
+  };
+
+  // ───── 추가 제시어 (v3). 'word' 또는 'word|읽기|별칭…' (일본어에서 읽기를 생략하면 가타카나→히라가나 자동 변환)
+  const MORE = {
+    ko: [
+      { '동물': '사자 호랑이 원숭이 말 소 양 닭 오리 뱀 나비 벌 거미 박쥐 캥거루 코알라',
+        '음식': '샌드위치 감자튀김 스파게티 카레 비빔밥 삼겹살 김치 우유 커피 초콜릿 사탕 쿠키 빵 치즈 솜사탕',
+        '사물': '가방 책 전화기 텔레비전 컴퓨터 카메라 망치 빗 거울 양초 전구 우체통 사다리 종 지갑',
+        '자연': '비 바람 강 호수 동굴 숲 잔디 낙엽 태풍 고드름',
+        '탈것': '자동차 버스 기차 비행기 배 헬리콥터 오토바이 택시 트럭 구급차 소방차 경찰차 로켓 잠수함 열기구 킥보드 스케이트보드 케이블카 유모차 썰매',
+        '과일·채소': '딸기 귤 복숭아 파인애플 레몬 체리 키위 감 멜론 당근 감자 고구마 양파 마늘 토마토 오이 호박 버섯 고추 브로콜리',
+        '몸·옷': '눈 코 입 귀 손 발 이빨 수염 머리카락 심장 뼈 티셔츠 바지 치마 양말 장갑 목도리 넥타이 반지 목걸이' },
+      { '장소': '병원 학교 은행 우체국 박물관 시장 주유소 놀이터 궁전 농장',
+        '행동': '달리기 박수 윙크 악수 세수 샤워 운전 청소 빨래 쇼핑',
+        '캐릭터': '공주 왕 요정 천사 악마 마녀 도깨비 광대 탐정 카우보이',
+        '직업·사물': '간호사 군인 가수 화가 농부 어부 택배기사 파일럿 사진작가 판사',
+        '스포츠': '축구 야구 농구 배구 테니스 탁구 골프 배드민턴 권투 양궁 펜싱 스케이트 서핑 마라톤 역도 체조 유도 씨름 컬링 다이빙',
+        '감정·상태': '기쁨 슬픔 화남 놀람 졸림 배고픔 부끄러움 무서움 지루함 긴장 사랑 질투 피곤 추위 더위 감기 두통 목마름 간지럼 당황',
+        '학교·회사': '칠판 시험 숙제 급식 운동회 졸업식 지각 회의 면접 출근 퇴근 명함 방학 소풍 체육복 교복 발표 반장 도시락 낙서',
+        '놀이·취미': '숨바꼭질 가위바위보 술래잡기 그네 미끄럼틀 시소 연날리기 팽이 퍼즐 보드게임 독서 뜨개질 종이접기 불꽃놀이 눈싸움 비눗방울 윷놀이 보물찾기 줄다리기 딱지치기' },
+      { '추상·개념': '자존심 양심 운명 행운 자유 평화 비밀 거짓말 향수병 번아웃',
+        '과학·세계': '태양계 일식 무중력 정전기 자석 지진 쓰나미 멸종 가상현실 암호화폐',
+        '명소·문화': '타지마할,피사의 사탑,그랜드캐니언,스톤헨지,오페라하우스,경복궁,남산타워,독도,한복,판소리',
+        '상황': '교통체증 정전 늦잠 길치 벼락치기 몰래카메라 이사 과식 품절 환승 분실물 새치기 무임승차 더치페이 읽씹 눈치게임 복불복 작심삼일 월세 칼퇴',
+        '역사·신화': '거북선,세종대왕,단군신화,로빈후드,클레오파트라,나폴레옹,트로이 목마,제우스,메두사,판도라의 상자,노아의 방주,아서왕,기사,검투사,바이킹,사무라이,화랑,산업혁명,달 착륙,타이타닉' },
+    ],
+    ja: [
+      { '動物': 'ライオン,トラ|とら|虎,サル|さる|猿,馬|うま,牛|うし,羊|ひつじ,ニワトリ|にわとり|鶏,アヒル,ヘビ|へび|蛇,蝶|ちょう|ちょうちょ|蝶々,ハチ|はち|蜂,コウモリ,カンガルー,コアラ,パンダ',
+        '食べ物': 'サンドイッチ,フライドポテト|ふらいどぽてと|ポテト,スパゲッティ|すぱげってぃ|パスタ,カレー|かれー|カレーライス,天ぷら|てんぷら,焼肉|やきにく,味噌汁|みそしる,牛乳|ぎゅうにゅう|ミルク,コーヒー,チョコレート|ちょこれーと|チョコ,プリン,クッキー,パン,チーズ,わたあめ|わたあめ|綿あめ|わたがし',
+        '物': 'かばん|かばん|鞄|バッグ,本|ほん,電話|でんわ,テレビ,パソコン|ぱそこん|コンピューター,カメラ,ハンマー|はんまー|金槌|かなづち,くし|くし|櫛,鏡|かがみ,ろうそく|ろうそく|蝋燭|キャンドル,電球|でんきゅう,ポスト,はしご|はしご|梯子,鈴|すず|ベル,財布|さいふ',
+        '自然': '雨|あめ,風|かぜ,川|かわ,湖|みずうみ,洞窟|どうくつ,森|もり,芝生|しばふ,落ち葉|おちば,台風|たいふう,つらら|つらら|氷柱',
+        '乗り物': '車|くるま|自動車,バス,電車|でんしゃ,飛行機|ひこうき,船|ふね,ヘリコプター|へりこぷたー|ヘリ,バイク|ばいく|オートバイ,タクシー,トラック,救急車|きゅうきゅうしゃ,消防車|しょうぼうしゃ,パトカー,ロケット,潜水艦|せんすいかん,気球|ききゅう|熱気球,キックボード,スケートボード|すけーとぼーど|スケボー,ロープウェイ|ろーぷうぇい|ケーブルカー,ベビーカー,そり',
+        '果物・野菜': 'いちご|いちご|苺,みかん|みかん|蜜柑,桃|もも,パイナップル,レモン,さくらんぼ|さくらんぼ|チェリー,キウイ,柿|かき,メロン,にんじん|にんじん|人参,じゃがいも|じゃがいも|ジャガイモ,さつまいも|さつまいも|サツマイモ,玉ねぎ|たまねぎ|玉葱,にんにく|にんにく|ニンニク,トマト,きゅうり|きゅうり|胡瓜,かぼちゃ|かぼちゃ|南瓜,きのこ|きのこ|茸,唐辛子|とうがらし,ブロッコリー',
+        '体・服': '目|め,眉毛|まゆげ,口|くち,耳|みみ,手|て,足|あし,歯|は,ひげ|ひげ|髭,髪|かみ|髪の毛,心臓|しんぞう|ハート,骨|ほね,Tシャツ|てぃーしゃつ,ズボン|ずぼん|パンツ,スカート,靴下|くつした|ソックス,手袋|てぶくろ,マフラー,ネクタイ,指輪|ゆびわ|リング,ネックレス' },
+      { '場所': '病院|びょういん,学校|がっこう,銀行|ぎんこう,郵便局|ゆうびんきょく,博物館|はくぶつかん,市場|いちば,ガソリンスタンド,公園|こうえん,お城|おしろ|城|しろ,農場|のうじょう|牧場',
+        '動作': '走る|はしる|ランニング,拍手|はくしゅ,ウインク,握手|あくしゅ,洗顔|せんがん|顔を洗う,シャワー,運転|うんてん|ドライブ,掃除|そうじ,洗濯|せんたく,買い物|かいもの|ショッピング',
+        'キャラ': 'お姫様|おひめさま|姫|プリンセス,王様|おうさま|王,妖精|ようせい,天使|てんし,悪魔|あくま,魔女|まじょ,鬼|おに,ピエロ,探偵|たんてい,カウボーイ',
+        '職業・物': '看護師|かんごし|ナース,兵士|へいし|軍人,歌手|かしゅ,画家|がか,農家|のうか|農夫,漁師|りょうし,配達員|はいたついん|宅配,パイロット,カメラマン|かめらまん|写真家,裁判官|さいばんかん',
+        'スポーツ': 'サッカー,野球|やきゅう,バスケットボール|ばすけっとぼーる|バスケ,バレーボール|ばれーぼーる|バレー,テニス,卓球|たっきゅう,ゴルフ,バドミントン,ボクシング,弓道|きゅうどう|アーチェリー,フェンシング,スケート,サーフィン,マラソン,重量挙げ|じゅうりょうあげ|ウエイトリフティング,体操|たいそう,柔道|じゅうどう,剣道|けんどう,カーリング,飛び込み|とびこみ|ダイビング',
+        '気持ち': '喜び|よろこび|嬉しい|うれしい,悲しみ|かなしみ|悲しい|かなしい,怒り|いかり|怒る|おこる,驚き|おどろき|びっくり,眠い|ねむい|眠気,空腹|くうふく|腹ペコ|はらぺこ,恥ずかしい|はずかしい,怖い|こわい|恐怖,退屈|たいくつ|暇,緊張|きんちょう,愛|あい|ラブ,嫉妬|しっと|やきもち,疲れ|つかれ|疲れた,寒い|さむい,暑い|あつい,咳|せき,頭痛|ずつう,喉が渇く|のどがかわく,くすぐったい,焦り|あせり|パニック',
+        '学校・会社': '黒板|こくばん,テスト|てすと|試験,宿題|しゅくだい,給食|きゅうしょく,運動会|うんどうかい,卒業式|そつぎょうしき,遅刻|ちこく,会議|かいぎ|ミーティング,面接|めんせつ,出勤|しゅっきん|通勤,退勤|たいきん|帰宅,名刺|めいし,夏休み|なつやすみ,遠足|えんそく,体操服|たいそうふく,制服|せいふく,発表|はっぴょう|プレゼン,学級委員|がっきゅういいん,お弁当|おべんとう|弁当,落書き|らくがき',
+        '遊び・趣味': 'かくれんぼ,じゃんけん,鬼ごっこ|おにごっこ,ブランコ,滑り台|すべりだい,シーソー,凧揚げ|たこあげ,コマ|こま|独楽,パズル,ボードゲーム,読書|どくしょ,編み物|あみもの,折り紙|おりがみ,花火|はなび,雪合戦|ゆきがっせん,シャボン玉|しゃぼんだま,すごろく|すごろく|双六,宝探し|たからさがし,綱引き|つなひき,けん玉|けんだま' },
+      { '抽象': 'プライド,良心|りょうしん,運命|うんめい,幸運|こううん|ラッキー,自由|じゆう,平和|へいわ,秘密|ひみつ,嘘|うそ,ホームシック,燃え尽き症候群|もえつきしょうこうぐん|バーンアウト',
+        '科学・世界': '太陽系|たいようけい,日食|にっしょく,無重力|むじゅうりょく,静電気|せいでんき,磁石|じしゃく,地震|じしん,津波|つなみ,絶滅|ぜつめつ,VR|VR|ぶいあーる|仮想現実,仮想通貨|かそうつうか|暗号資産',
+        '名所・文化': 'タージマハル,ピサの斜塔|ぴさのしゃとう,グランドキャニオン,ストーンヘンジ,オペラハウス,東京タワー|とうきょうたわー,スカイツリー,金閣寺|きんかくじ,着物|きもの,歌舞伎|かぶき',
+        'シチュエーション': '渋滞|じゅうたい,停電|ていでん,寝坊|ねぼう,方向音痴|ほうこうおんち,一夜漬け|いちやづけ,ドッキリ,引っ越し|ひっこし,食べ過ぎ|たべすぎ,売り切れ|うりきれ|品切れ,乗り換え|のりかえ,落とし物|おとしもの|忘れ物,割り込み|わりこみ,無賃乗車|むちんじょうしゃ,割り勘|わりかん,既読スルー|きどくするー|既読無視,満員電車|まんいんでんしゃ,罰ゲーム|ばつげーむ,三日坊主|みっかぼうず,家賃|やちん,定時退社|ていじたいしゃ|定時',
+        '歴史・神話': '黒船|くろふね,織田信長|おだのぶなが|信長,桃太郎|ももたろう,ロビンフッド,クレオパトラ,ナポレオン,トロイの木馬|とろいのもくば,ゼウス,メデューサ,パンドラの箱|ぱんどらのはこ,ノアの箱舟|のあのはこぶね|ノアの方舟,アーサー王|あーさーおう,騎士|きし|ナイト,剣闘士|けんとうし|グラディエーター,バイキング,侍|さむらい|サムライ,新選組|しんせんぐみ|新撰組,産業革命|さんぎょうかくめい,月面着陸|げつめんちゃくりく,タイタニック' },
+    ],
+  };
+  const hira = (s) => s.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  for (const lang of ['ko', 'ja']) MORE[lang].forEach((cats, lv) => { for (const [cat, str] of Object.entries(cats)) {
+    const items = str.split(str.includes(',') ? ',' : ' ').map(x => x.trim()).filter(Boolean).map(x => { if (lang === 'ko') return x; const p = x.split('|'); return p.length === 1 ? [p[0], hira(p[0])] : p; });
+    WORDS[lang][lv][cat] = (WORDS[lang][lv][cat] || []).concat(items);
+  } });
+
+  const code = NG.codeFromHash() || NG.genCode();
+  try { history.replaceState(null, '', '#' + code.toLowerCase()); } catch {}
+  const room = new NG.Room(GAME, code);
+  let drawSeconds = 120;
+  const fresh = () => ({ phase: 'lobby', round: 0, totalRounds: 0, drawer: null, word: '', reading: '', accept: [], category: '', level: 1, timeLeft: 0, scores: {}, winner: null, order: [], drawSec: drawSeconds, candidates: [] });
+  let state = fresh(), lastSeenRound = -1;
+  const amDrawer = () => (state.phase === 'draw' || state.phase === 'pick') && state.drawer === NG.me.uid;
+  const canDraw = () => state.phase === 'draw' && state.drawer === NG.me.uid;
+  const lvName = (i) => t('levels')[i] || t('levels')[1];
+
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); $('codeChip').textContent = code; NG.bindCodeChip($('codeChip'), code);
+  NG.bindLogo(document, () => room.leave());
+  NG.mobileLayout('.tools, .quick'); NG.touchProfile(GAME);
+
+  // ───── 정답/힌트
+  const CHO = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  const chosung = (ch) => { const c = ch.charCodeAt(0); return (c >= 0xAC00 && c <= 0xD7A3) ? CHO[Math.floor((c - 0xAC00) / 588)] : ch.toUpperCase(); };
+  function hintCells() {
+    const w = state.lang === 'ja' ? norm(state.reading || state.word) : norm(state.word);
+    const half = state.timeLeft <= (state.drawSec || drawSeconds) / 2; const chars = [...w];
+    if (!half) return chars.map(() => '');
+    if (state.lang === 'ja') return chars.map((ch, i) => i === 0 ? ch : '');
+    return chars.map(chosung);
+  }
+  function renderHint(meta) { const w = $('word'); w.className = 'word'; w.innerHTML = ''; for (const ch of hintCells()) { const b = NG.el('span', 'box' + (ch ? ' filled' : ''), ch); w.appendChild(b); } w.appendChild(NG.el('span', 'meta', meta)); }
+  const isAnswer = (text) => { const n = norm(text); return !!n && (state.accept || []).some(a => norm(a) === n); };
+  const isClose = (text) => { const n = norm(text); return n.length >= 2 && (state.accept || []).some(a => norm(a).includes(n)); };
+  const shownWord = () => state.lang === 'ja' && state.reading && norm(state.reading) !== norm(state.word) ? `${state.word}（${state.reading}）` : state.word;
+
+  // ───── 그리기
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  let strokes = [], color = COLORS[0], size = SIZES[1], drawing = false, cur = null, buf = [], flushT = null;
+  function redraw() { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); for (const s of strokes) paint(s.pts, s.color, s.size); }
+  function paint(pts, c, w) {
+    if (!pts.length) return; ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(pts[0][0] * cv.width, pts[0][1] * cv.height);
+    if (pts.length === 1) ctx.lineTo(pts[0][0] * cv.width + 0.01, pts[0][1] * cv.height);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * cv.width, pts[i][1] * cv.height); ctx.stroke();
+  }
+  const clearBoard = () => { strokes = []; redraw(); };
+  const pos = (e) => { const r = cv.getBoundingClientRect(); return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]; };
+  // iOS 사파리는 touch-action만으로 스크롤이 완전히 안 막힐 때가 있어서 터치 이벤트도 직접 막는다
+  const blockTouch = (e) => { if (canDraw()) e.preventDefault(); };
+  for (const ev of ['touchstart', 'touchmove']) { cv.addEventListener(ev, blockTouch, { passive: false }); cv.parentElement.addEventListener(ev, (e) => { if (drawing) e.preventDefault(); }, { passive: false }); }
+  document.addEventListener('touchmove', (e) => { if (drawing) e.preventDefault(); }, { passive: false });
+  cv.addEventListener('pointerdown', (e) => {
+    if (!canDraw()) return;
+    e.preventDefault();
+    NG.layoutLock = true;                                   // 그리는 동안 그림판 크기 고정
+    document.documentElement.classList.add('drawing');
+    cv.setPointerCapture(e.pointerId); drawing = true;
+    const p = pos(e); cur = { pts: [p], color, size }; strokes.push(cur); paint([p], color, size); buf = [p]; scheduleFlush();
+  });
+  cv.addEventListener('pointermove', (e) => { if (!drawing || !cur) return; const p = pos(e); paint([cur.pts[cur.pts.length - 1], p], color, size); cur.pts.push(p); buf.push(p); if (buf.length >= 40) flush(); });
+  const stop = () => { if (!drawing) return; drawing = false; flush(); cur = null; document.documentElement.classList.remove('drawing'); setTimeout(() => { NG.layoutLock = false; }, 800); };
+  cv.addEventListener('pointerup', stop); cv.addEventListener('pointercancel', stop);
+  function scheduleFlush() { if (!flushT) flushT = setTimeout(flush, 60); }
+  function flush() {
+    clearTimeout(flushT); flushT = null;
+    if (!buf.length) { buf = cur ? [cur.pts[cur.pts.length - 1]] : []; return; }
+    const pts = buf.map(p => [+p[0].toFixed(4), +p[1].toFixed(4)]);
+    room.ref.child('strokes').push({ by: NG.me.uid, round: state.round, pts, color, size }).catch(() => {});
+    buf = cur ? [cur.pts[cur.pts.length - 1]] : []; if (drawing) scheduleFlush();
+  }
+  function renderTools() {
+    const w = $('tools'); w.innerHTML = ''; if (!canDraw()) return;
+    for (const c of COLORS) { const b = NG.el('div', 'swatch' + (c === color ? ' on' : '')); b.style.background = c; b.addEventListener('click', () => { color = c; renderTools(); }); w.appendChild(b); }
+    for (const s of SIZES) { const b = NG.el('div', 'size' + (s === size ? ' on' : '')); const i = NG.el('i'); i.style.width = i.style.height = (s + 2) + 'px'; b.appendChild(i); b.addEventListener('click', () => { size = s; renderTools(); }); w.appendChild(b); }
+    const clr = NG.el('button', 'btn-ghost', t('clear')); clr.addEventListener('click', () => { clearBoard(); room.ref.child('strokes').remove().catch(() => {}); }); w.appendChild(clr);
+  }
+
+  // ───── 화면
+  function render() {
+    const act = room.active(); const amPlayer = act.some(p => p.id === NG.me.uid);
+    NG.renderPlayers(room, $('players'), { tagOf: (id) => state.drawer === id && state.phase !== 'lobby' ? t('drawing') : null, scoreOf: (id) => t('pts', (state.scores || {})[id] || 0), hl: (id) => state.drawer === id && state.phase === 'draw' });
+    $('pcount').textContent = `${act.length}/${room.maxPlayers}`;
+    $('langBadge').textContent = t('roomLang', state.lang || NG.ui);
+    const drawerName = state.drawer ? room.nameOf(state.drawer) : ''; const timerEl = $('timer'), wordEl = $('word');
+    timerEl.classList.remove('hot');
+    if (state.phase === 'lobby') { $('roundPill').textContent = t('lobby'); timerEl.textContent = '--'; wordEl.textContent = ''; }
+    else if (state.phase === 'end') { $('roundPill').textContent = t('end'); timerEl.textContent = '--'; wordEl.textContent = ''; }
+    else if (state.phase === 'pick') { $('roundPill').textContent = t('round', state.round + 1, state.totalRounds, drawerName); timerEl.textContent = `⏱ ${state.timeLeft}`; wordEl.className = 'word'; wordEl.textContent = t('picking'); }
+    else {
+      $('roundPill').textContent = t('round', state.round + 1, state.totalRounds, drawerName);
+      timerEl.textContent = state.phase === 'draw' ? `⏱ ${NG.fmtTime(state.timeLeft)}` : t('answerTag');
+      timerEl.classList.toggle('hot', state.phase === 'draw' && state.timeLeft <= 10);
+      const len = [...norm(state.lang === 'ja' ? (state.reading || state.word) : state.word)].length;
+      if (amDrawer() || state.phase === 'reveal') { wordEl.className = 'word secret'; wordEl.textContent = shownWord(); }
+      else renderHint(`${t('chars', len)} · ${catName(state.category)} · ${lvName(state.level)}`);
+    }
+    const banner = $('banner'), h2 = banner.querySelector('h2'), bt = $('bannerText'); banner.classList.remove('hidden');
+    if (state.phase === 'lobby') { h2.textContent = act.length < 2 ? t('waitFriends') : t('ready'); bt.textContent = act.length < 2 ? t('shareCode', code) : (room.isHost ? t('pressStart') : t('waitHost', room.nameOf(room.hostId()))); }
+    else if (state.phase === 'pick') {
+      if (amDrawer()) {
+        h2.textContent = t('pickTitle'); bt.innerHTML = ''; const wrap = NG.el('div', 'pick');
+        (state.candidates || []).forEach((c, i) => {
+          const b = NG.el('button', 'lv' + c.level); b.appendChild(NG.el('span', '', c.reading && norm(c.reading) !== norm(c.word) ? `${c.word}（${c.reading}）` : c.word));
+          b.appendChild(NG.el('small', '', `${lvName(c.level)} · ${catName(c.category)} · ${t('pts', LEVEL_PTS[c.level])}`));
+          b.addEventListener('click', () => room.ref.child('pick').set({ by: NG.me.uid, round: state.round, idx: i }).catch(() => {})); wrap.appendChild(b);
+        });
+        bt.appendChild(wrap); const note = NG.el('div', 'muted', t('pickNote', state.timeLeft)); note.style.cssText = 'margin-top:10px;font-size:13px'; bt.appendChild(note);
+      } else { h2.textContent = t('pickingBy', drawerName); bt.textContent = t('pleaseWait'); }
+    }
+    else if (state.phase === 'draw') banner.classList.add('hidden');
+    else if (state.phase === 'reveal') { h2.textContent = state.winner ? t('correctBy', room.nameOf(state.winner)) : t('timeUp'); bt.innerHTML = ''; bt.appendChild(NG.el('div', 'big', shownWord())); }
+    else if (state.phase === 'end') {
+      const ranked = act.map(p => [room.nameOf(p.id), (state.scores || {})[p.id] || 0]).sort((a, b) => b[1] - a[1]);
+      h2.textContent = t('winner', ranked[0] ? ranked[0][0] : '-'); bt.textContent = ranked.map((r, i) => `${t('ranks')[i] || (i + 1)} ${r[0]} ${t('pts', r[1])}`).join('  ·  ');
+    }
+    const inLobby = state.phase === 'lobby' || state.phase === 'end';
+    $('startBtn').classList.toggle('hidden', !(room.isHost && inLobby && act.length >= 2)); $('startBtn').textContent = state.phase === 'end' ? t('again') : t('start');
+    $('stopBtn').classList.toggle('hidden', !(room.isHost && !inLobby)); if (!stopArmed) $('stopBtn').textContent = t('stop');
+    $('timeSet').classList.toggle('hidden', !inLobby); $('timeSel').disabled = !room.isHost; if (state.drawSec) $('timeSel').value = String(state.drawSec);
+    const ph = amDrawer() ? t('phNoHint') : (state.phase === 'draw' ? t('phAnswer') : t('phChat'));
+    $('chatInput').placeholder = $('quickInput').placeholder = ph; $('chatInput').disabled = $('quickInput').disabled = !amPlayer && state.phase === 'draw';
+    document.body.classList.toggle('can-draw', canDraw());
+    document.body.classList.toggle('playing', state.phase === 'draw' || state.phase === 'pick' || state.phase === 'reveal');
+    NG.layoutHold = state.phase === 'draw' || state.phase === 'pick' || state.phase === 'reveal';   // 게임 중엔 그림판 크기 유지
+    renderTools();
+    // 단계가 바뀔 때(도구가 생기거나 사라질 때) 한 번만 크기를 다시 맞추고, 그 단계 안에서는 고정
+    const lkey = state.phase + '|' + canDraw();
+    if (NG.syncLayout) NG.syncLayout(lkey !== render._lkey); render._lkey = lkey;
+  }
+
+  // ───── 호스트
+  function entry(lang, raw, cat, level) { if (lang === 'ja') { const [word, reading, ...alts] = raw; return { word, reading, accept: [word, reading, ...alts], category: cat, level }; } return { word: raw, reading: '', accept: [raw], category: cat, level }; }
+  // 같은 방에서 한 번 후보로 나온 제시어는 다시 안 나옴 (rooms/draw/{code}/used, 방이 비면 초기화)
+  let usedWords = new Set();
+  const usedKey = (w) => String(w).replace(/[.#$/\[\]]/g, '_');
+  function pickOne(lang, level, avoid) {
+    const book = WORDS[lang][level]; const all = [];
+    for (const c of Object.keys(book)) for (const raw of book[c]) all.push(entry(lang, raw, c, level));
+    let pool = all.filter(e => !avoid.has(e.word) && !usedWords.has(usedKey(e.word)));
+    if (!pool.length) {   // 이 난이도를 다 썼으면 이 난이도만 처음부터 다시
+      const upd = {}; for (const e of all) { usedWords.delete(usedKey(e.word)); upd[usedKey(e.word)] = null; }
+      room.ref.child('used').update(upd).catch(() => {});
+      pool = all.filter(e => !avoid.has(e.word));
+    }
+    const e = pool[Math.floor(Math.random() * pool.length)]; avoid.add(e.word); return e;
+  }
+  const makeCandidates = (lang) => { const a = new Set(); return [pickOne(lang, 0, a), pickOne(lang, 1, a), pickOne(lang, 1, a), pickOne(lang, 2, a)]; };
+  function startGame() { const ids = room.active().map(p => p.id); state = { ...fresh(), lang: state.lang, langSet: true, order: ids, totalRounds: ids.length * ROUNDS_PER_PLAYER, scores: {}, drawSec: drawSeconds }; beginRound(0); }
+  function beginRound(r) {
+    const alive = state.order.filter(id => room.players[id]);
+    if (alive.length < 2) { state.phase = 'lobby'; room.pushState(state); return; }
+    if (r >= state.totalRounds) return endGame();
+    state.round = r; state.drawer = alive[r % alive.length]; state.candidates = makeCandidates(state.lang || 'ko');
+    { const upd = {}; for (const c of state.candidates) { usedWords.add(usedKey(c.word)); upd[usedKey(c.word)] = true; } room.ref.child('used').update(upd).catch(() => {}); }
+    Object.assign(state, { word: '', reading: '', accept: [], category: '', level: 1, phase: 'pick', timeLeft: PICK_SECONDS, winner: null });
+    room.ref.child('strokes').remove().catch(() => {}); room.ref.child('pick').remove().catch(() => {}); room.pushState(state);
+  }
+  function beginDraw(idx) { const c = (state.candidates || [])[idx] || (state.candidates || [])[0]; if (!c) return beginRound(state.round + 1); Object.assign(state, { word: c.word, reading: c.reading || '', accept: c.accept || [c.word], category: c.category, level: c.level, phase: 'draw', timeLeft: state.drawSec || drawSeconds }); room.pushState(state); }
+  function endRound(winner) { state.scores = state.scores || {}; const base = LEVEL_PTS[state.level] || 15; if (winner) { state.scores[winner] = (state.scores[winner] || 0) + base + Math.ceil(state.timeLeft / 8); state.scores[state.drawer] = (state.scores[state.drawer] || 0) + Math.round(base / 2); } state.winner = winner; state.phase = 'reveal'; state.timeLeft = REVEAL_SECONDS; room.pushState(state); }
+  function endGame() {
+    state.phase = 'end'; room.pushState(state);
+    const alive = state.order.filter(id => room.players[id]); const ranked = alive.map(id => [id, state.scores[id] || 0]).sort((a, b) => b[1] - a[1]);
+    if (alive.length > 1) NG.recordResult(GAME, { winner: ranked[0] && ranked[0][1] > 0 ? ranked[0][0] : null, players: alive, scores: Object.fromEntries(alive.map(id => [id, state.scores[id] || 0])) });
+  }
+  room.setHostLoop(() => {
+    if (state.phase === 'pick') { if (!room.players[state.drawer]) return beginRound(state.round + 1); state.timeLeft--; if (state.timeLeft <= 0) return beginDraw(0); room.pushState(state); }
+    else if (state.phase === 'draw') { if (!room.players[state.drawer]) return endRound(null); state.timeLeft--; if (state.timeLeft <= 0) return endRound(null); room.pushState(state); }
+    else if (state.phase === 'reveal') { state.timeLeft--; if (state.timeLeft <= 0) beginRound(state.round + 1); }
+  });
+  function hostOnChat(m) { if (!room.isHost || state.phase !== 'draw' || m.by === state.drawer || !(state.order || []).includes(m.by)) return; if (m.round === state.round && isAnswer(m.text)) endRound(m.by); }
+  let stopArmed = false, stopT = null;
+  $('startBtn').addEventListener('click', () => { if (room.isHost) startGame(); });
+  $('stopBtn').addEventListener('click', () => {
+    if (!room.isHost) return;
+    if (!stopArmed) { stopArmed = true; $('stopBtn').textContent = t('stopConfirm'); clearTimeout(stopT); stopT = setTimeout(() => { stopArmed = false; render(); }, 3000); return; }
+    stopArmed = false; clearTimeout(stopT); state = { ...fresh(), lang: state.lang, langSet: true, drawSec: state.drawSec }; room.ref.child('strokes').remove().catch(() => {}); room.ref.child('pick').remove().catch(() => {}); room.pushState(state); NG.addMsg('sys', '', t('stopped'));
+  });
+  $('timeSel').addEventListener('change', () => { if (!room.isHost) return; drawSeconds = +$('timeSel').value; state.drawSec = drawSeconds; room.pushState(state); });
+  $('leaveBtn').addEventListener('click', async () => { await room.leave(); location.href = 'index.html'; });
+
+  // ───── 채팅
+  const send = (v) => { v = String(v || '').trim(); if (!v) return; if (amDrawer() && isAnswer(v)) { NG.addMsg('sys', '', t('noHint')); return; } room.sendChat(v, { round: state.round }).catch(() => NG.addMsg('sys', '', t('sendFail'))); };
+  $('chatForm').addEventListener('submit', e => { e.preventDefault(); send($('chatInput').value); $('chatInput').value = ''; });
+  $('quickForm').addEventListener('submit', e => { e.preventDefault(); send($('quickInput').value); $('quickInput').value = ''; $('quickInput').focus(); });
+
+  // ───── 연결
+  room.on('players', (list, info) => { if (info && info.connected != null) { $('status').textContent = t(info.connected ? 'connected' : 'connecting'); $('status').className = 'status' + (info.connected ? ' on' : ''); } for (const n of (info && info.notes) || []) NG.addMsg('sys', '', n); render(); })
+      .on('state', (s) => {
+        state = { ...fresh(), ...(s || {}), scores: (s && s.scores) || {}, order: (s && s.order) || [], accept: (s && s.accept) || [], candidates: (s && s.candidates) || [] };
+        if (state.drawSec) drawSeconds = state.drawSec;
+        if (state.round !== lastSeenRound || state.phase === 'lobby') { if (state.phase === 'pick' && state.round !== lastSeenRound) NG.addMsg('sys', '', t('turn', state.round + 1, room.nameOf(state.drawer))); lastSeenRound = state.round; }
+        if (state.phase === 'reveal' && state.winner && !render._c) { render._c = true; NG.confetti(); } if (state.phase !== 'reveal') render._c = false;
+        render(); })
+      .on('chat', (m) => {
+        const text = String(m.text || '').slice(0, 40); const nm = room.nameOf(m.by) === '?' ? m.name : room.nameOf(m.by);
+        if (state.phase === 'draw' && m.by !== state.drawer && isAnswer(text)) NG.addMsg('win', '', t('correctBy', nm));
+        else if (state.phase === 'draw' && isClose(text)) NG.addMsg('close', nm, ' ' + text + '  ' + t('close'));
+        else NG.addMsg('', nm, ' ' + text);
+        hostOnChat(m);
+      });
+  room.join(fresh()).then(r => {
+    if (r.error) { location.href = 'index.html?err=' + encodeURIComponent(r.error); return; }
+    room.listen(room.ref.child('used'), 'value', (s) => { usedWords = new Set(Object.keys(s.val() || {})); });
+    room.listen(room.ref.child('pick'), 'value', (s) => { const v = s.val(); if (room.isHost && state.phase === 'pick' && v && v.by === state.drawer && v.round === state.round) beginDraw(+v.idx || 0); });
+    room.listen(room.ref.child('strokes'), 'value', (s) => {
+      const all = s.val() || {};
+      strokes = Object.values(all).filter(st => st && Array.isArray(st.pts) && st.round === state.round).map(st => ({ pts: st.pts.filter(p => Array.isArray(p) && p.length === 2).map(p => [+p[0], +p[1]]), color: COLORS.includes(st.color) ? st.color : COLORS[0], size: SIZES.includes(st.size) ? st.size : 9 }));
+      if (cur && drawing) strokes.push(cur); redraw();
+    });
+    render();
+  });
+  redraw(); render();
+})();
+</script>
+</body>
+</html>

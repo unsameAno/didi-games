@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#120f1d">
+<title>에임 테스트 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 에임 테스트 — 1인 게임. 놀이 영역은 어떤 화면에서도 정사각형, 원 크기는 영역의 18%로 고정 */
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; overscroll-behavior: none; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top .ttl { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; margin: 0 auto; padding: 18px 15px 18px; }
+  .hud { display: flex; gap: 14px; width: min(100%, calc(100dvh - 250px)); min-width: 260px; padding: 0 3px; }
+  .hud .box { flex: 1; background: var(--panel); padding: 8px 12px; display: flex; align-items: baseline; justify-content: space-between; --dc: var(--ink); --dp: 5px; }
+  .hud .box span { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .hud .box b { font-size: 24px; font-variant-numeric: tabular-nums; color: var(--text); }
+  .hud .box.time.low b { color: var(--pink); }
+  .hud .box.time.hit { --bc: var(--pink); } .hud .box.time.hit b { color: var(--pink); }
+  .arena { position: relative; width: min(100%, calc(100dvh - 250px)); min-width: 260px; aspect-ratio: 1; background: var(--panel); --bc: var(--ink); --dc: var(--ink); --dp: 9px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: crosshair; margin: 0 3px; }
+  .arena.play { background-color: #171329; background-image: linear-gradient(rgba(164,107,255,.07) 2px, transparent 2px), linear-gradient(90deg, rgba(164,107,255,.07) 2px, transparent 2px); background-size: 10% 10%; }
+  .tg { position: absolute; width: 18%; height: 18%; transform: translate(-50%, -50%); pointer-events: none; }
+  .tg svg { width: 100%; height: 100%; display: block; }
+  .tg.in { animation: tgin .08s steps(2); }
+  @keyframes tgin { from { transform: translate(-50%, -50%) scale(.6); } to { transform: translate(-50%, -50%) scale(1); } }
+  /* 맞힘: 작은 고리가 퍼졌다 사라짐 / 빗나감: 누른 자리에 작은 -0.5 (화면 전체는 번쩍이지 않음) */
+  .fx { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+  .fx.ok { width: 18%; height: 18%; box-shadow: 0 0 0 3px var(--mint) inset; animation: fxok .22s steps(4) forwards; }
+  .fx.miss { font-size: 13px; font-weight: 700; color: var(--pink); text-shadow: 2px 2px 0 var(--ink); white-space: nowrap; animation: fxmiss .6s steps(6) forwards; }
+  @keyframes fxok { to { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
+  @keyframes fxmiss { to { transform: translate(-50%, -160%); opacity: 0; } }
+  .ov { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 18px; overflow-y: auto; }
+  .ov h2 { font-size: clamp(24px, 7vw, 34px); color: var(--yellow); text-shadow: 3px 3px 0 var(--ink); }
+  .ov .hint { font-size: 13px; color: var(--yellow); animation: blink 1s steps(2) infinite; }
+  .ov .count { font-size: clamp(72px, 26vw, 140px); font-weight: 700; color: #fff; text-shadow: 5px 5px 0 var(--pink); animation: pop .25s steps(3); line-height: 1; }
+  .big-ic { animation: bob 1s steps(2) infinite; }
+  .bestline { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .bestline b { color: var(--yellow); }
+  .res .lbl { font-size: 12px; color: var(--muted); }
+  .res .num { font-size: clamp(56px, 18vw, 96px); font-weight: 700; color: var(--yellow); line-height: 1; text-shadow: 5px 5px 0 var(--pink); animation: pop .3s steps(3); }
+  .res .num small { font-size: .3em; color: var(--text); text-shadow: none; margin-left: 4px; }
+  .newrec { background: var(--pink); color: #fff; font-size: 13px; font-weight: 700; padding: 5px 10px; animation: pulse .6s steps(2) infinite; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; max-width: 300px; padding: 3px; }
+  .stat { background: var(--panel2); padding: 8px 4px; }
+  .stat b { display: block; font-size: 19px; color: var(--text); }
+  .stat span { font-size: 10px; color: var(--muted); }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: min(100%, calc(100dvh - 250px)); min-width: 260px; padding: 3px 3px 0; }
+  .acts button { font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .full { grid-column: 1 / -1; font-size: 18px; padding: 14px; }
+  @media (min-width: 761px) { .hud, .arena, .acts { width: min(560px, calc(100dvh - 270px)); } }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <span class="ttl"><i data-ic="target" data-size="18"></i><span data-t="gameName"></span></span>
+  <span class="grow"></span>
+  <span class="pill" id="bestPill"><i data-ic="trophy" data-size="14"></i><span id="bestTxt">--</span></span>
+</div>
+
+<div class="wrap">
+  <div class="hud">
+    <div class="box pxb time" id="timeBox"><span data-t="timeLbl"></span><b id="timeTxt">30.0</b></div>
+    <div class="box pxb"><span data-t="hitLbl"></span><b id="hitTxt">0</b></div>
+  </div>
+  <div class="arena pxb" id="arena"></div>
+  <div class="acts hidden" id="acts">
+    <button class="btn-main full" id="againBtn"><i data-ic="play" data-size="14"></i><span data-t="again2"></span></button>
+    <button class="btn-yellow" id="rankBtn"><i data-ic="trophy" data-size="16"></i><span data-t="seeRank"></span></button>
+    <button class="btn-ghost" id="homeBtn"><i data-ic="home" data-size="16"></i><span data-t="toLobby"></span></button>
+  </div>
+</div>
+<canvas id="confetti"></canvas>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '에임 테스트', timeLbl: '남은 시간', hitLbl: '맞힌 개수', again2: '다시 도전', seeRank: '랭킹 보기', toLobby: '로비로',
+      tapStart: '화면을 터치해서 시작', hitsLbl: '맞힌 개수', unit: '개', accS: '정확도', missS: '빗나감', newRec: '최고 기록 경신!', prevBest: (n) => `이전 최고 ${n}개`,
+      myRank: (n) => `현재 랭킹 ${n}위`, bestPill: (n) => `최고 ${n}개`, noBest: '첫 도전!', missFx: '-0.5초',
+      grade: (n) => n >= 70 ? '전설의 손가락!' : n >= 55 ? '프로게이머급!' : n >= 42 ? '꽤 빨라요' : n >= 30 ? '평균 정도예요' : '다시 도전해 봐요' },
+    ja: { gameName: 'エイムテスト', timeLbl: '残り時間', hitLbl: '当てた数', again2: 'もう一回', seeRank: 'ランキング', toLobby: 'ロビーへ',
+      tapStart: '画面をタップしてスタート', hitsLbl: '当てた数', unit: '個', accS: '正確度', missS: 'ミス', newRec: '自己ベスト更新！', prevBest: (n) => `前回のベスト ${n}個`,
+      myRank: (n) => `現在ランキング${n}位`, bestPill: (n) => `ベスト ${n}個`, noBest: '初挑戦！', missFx: '-0.5秒',
+      grade: (n) => n >= 70 ? '伝説の指さばき！' : n >= 55 ? 'プロゲーマー級！' : n >= 42 ? 'なかなか速い' : n >= 30 ? '平均くらい' : 'もう一回挑戦！' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const GAME = 'aim', TIME = 30000, PENALTY = 500, SIZE = 0.18, R = SIZE / 2;   // 원 지름 = 영역의 18% (고정)
+  document.title = `${t('gameName')} · DIDI Games`;
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); NG.bindLogo(document);
+  NG.setPresence(GAME); NG.touchProfile(GAME);
+
+  const arena = $('arena');
+  let phase = 'intro', hits = 0, misses = 0, endAt = 0, raf = 0, tx = .5, ty = .5, tgEl = null, myBest = null, cdTimer = null;
+  const setBest = () => { $('bestTxt').textContent = myBest != null ? t('bestPill', myBest) : t('noBest'); };
+  setBest();
+  NG.myStats(GAME).then(s => { if (s && s.hits != null) { myBest = s.hits; setBest(); if (phase === 'intro') showIntro(); } });
+
+  const TARGET_SVG = `<svg viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#07050e" d="M4 0h4v1h2v1h1v2h1v4h-1v2h-1v1H8v1H4v-1H2v-1H1V8H0V4h1V2h1V1h2z"/><path fill="#ff4d8d" d="M4 1h4v1h2v2h1v4h-1v2H8v1H4v-1H2V8H1V4h1V2h2z"/><path fill="#fff" d="M4 3h4v1h1v4H8v1H4V8H3V4h1z"/><path fill="#ff4d8d" d="M5 5h2v2H5z"/></svg>`;
+
+  function showIntro() {
+    arena.className = 'arena pxb'; $('acts').classList.add('hidden');
+    $('timeTxt').textContent = (TIME / 1000).toFixed(1); $('hitTxt').textContent = '0'; $('timeBox').classList.remove('low', 'hit');
+    arena.innerHTML = `<div class="ov"><div class="big-ic">${NG.icon('target', 64)}</div><h2>${t('gameName')}</h2>${myBest != null ? `<div class="bestline">${NG.icon('trophy', 14)}<b>${t('bestPill', myBest)}</b></div>` : ''}<div class="hint">▶ ${t('tapStart')}</div></div>`;
+  }
+  function countdown() {
+    phase = 'count'; let n = 3; arena.className = 'arena pxb'; $('acts').classList.add('hidden');
+    const show = () => { arena.innerHTML = `<div class="ov"><div class="count">${n}</div></div>`; };
+    show(); clearInterval(cdTimer);
+    cdTimer = setInterval(() => { n--; if (n <= 0) { clearInterval(cdTimer); start(); } else show(); }, 650);
+  }
+  function place() {
+    // 이전 원에서 영역의 25% 이상 떨어진 곳에, 가장자리에 잘리지 않게
+    let x, y, tries = 0;
+    do { x = R + 0.02 + Math.random() * (1 - 2 * R - 0.04); y = R + 0.02 + Math.random() * (1 - 2 * R - 0.04); } while (Math.hypot(x - tx, y - ty) < 0.25 && ++tries < 30);
+    tx = x; ty = y;
+    if (!tgEl) { tgEl = NG.el('div', 'tg'); tgEl.innerHTML = TARGET_SVG; arena.appendChild(tgEl); }
+    tgEl.style.left = (x * 100) + '%'; tgEl.style.top = (y * 100) + '%';
+    tgEl.classList.remove('in'); void tgEl.offsetWidth; tgEl.classList.add('in');
+  }
+  function start() {
+    phase = 'play'; hits = 0; misses = 0; tgEl = null; tx = ty = .5;
+    arena.innerHTML = ''; arena.className = 'arena pxb play'; $('hitTxt').textContent = '0';
+    endAt = performance.now() + TIME; place(); tick();
+  }
+  function tick() {
+    if (phase !== 'play') return;
+    const left = endAt - performance.now();
+    if (left <= 0) { $('timeTxt').textContent = '0.0'; finish(); return; }
+    $('timeTxt').textContent = (left / 1000).toFixed(1); $('timeBox').classList.toggle('low', left < 5000);
+    raf = requestAnimationFrame(tick);
+  }
+  function fx(cls, x, y, text) { const e = NG.el('div', 'fx ' + cls, text); e.style.left = (x * 100) + '%'; e.style.top = (y * 100) + '%'; arena.appendChild(e); setTimeout(() => e.remove(), 700); }
+  let hitFlash = null;
+  function onTap(e) {
+    if (phase === 'intro') { countdown(); return; }
+    if (phase !== 'play') return;
+    const r = arena.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    const tol = e.pointerType === 'mouse' ? 0 : 4 / r.width;       // 손가락은 4px 여유
+    if (Math.hypot(x - tx, y - ty) <= R + tol) { hits++; $('hitTxt').textContent = hits; fx('ok', tx, ty); place(); }
+    else {
+      misses++; endAt -= PENALTY; fx('miss', Math.min(.9, Math.max(.1, x)), Math.max(.08, y), t('missFx'));
+      $('timeBox').classList.add('hit'); clearTimeout(hitFlash); hitFlash = setTimeout(() => $('timeBox').classList.remove('hit'), 300);
+    }
+  }
+  arena.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse' && e.button !== 0) return; if (phase !== 'result') e.preventDefault(); onTap(e); });
+  for (const ev of ['touchstart', 'touchmove']) arena.addEventListener(ev, (e) => { if (phase === 'play' || phase === 'count') e.preventDefault(); }, { passive: false });
+  arena.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  function finish() {
+    phase = 'result'; cancelAnimationFrame(raf); $('timeBox').classList.remove('low', 'hit');
+    const total = hits + misses, acc = total ? Math.round(hits / total * 100) : 0, prevBest = myBest;
+    arena.className = 'arena pxb';
+    arena.innerHTML = `<div class="ov res"><div class="lbl">${t('hitsLbl')}</div><div class="num">${hits}<small>${t('unit')}</small></div><div class="bestline"><b>${t('grade', hits)}</b></div>
+      <div id="recLine" style="min-height:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center"></div>
+      <div class="stats"><div class="stat pxb"><b>${acc}%</b><span>${t('accS')}</span></div><div class="stat pxb"><b>${misses}</b><span>${t('missS')}</span></div></div></div>`;
+    setTimeout(() => $('acts').classList.remove('hidden'), 500);      // 마지막 연타가 버튼에 닿지 않게 살짝 늦게
+    NG.recordTop(GAME, 'hits', hits, { acc }).then(async (res) => {
+      const line = $('recLine'); if (!line || phase !== 'result') return;
+      const prev = res && res.prev && res.prev.hits != null ? res.prev.hits : prevBest;
+      if (hits > 0 && (prev == null || hits > prev)) { line.insertAdjacentHTML('beforeend', `<span class="newrec">★ ${t('newRec')}</span>`); if (prev != null) line.insertAdjacentHTML('beforeend', `<span class="lbl">${t('prevBest', prev)}</span>`); NG.confetti(); }
+      myBest = prev == null ? hits : Math.max(prev, hits); setBest();
+      try { const rows = await NG.leaderboard(GAME, 'hits', 200); const i = rows.findIndex(r => r.uid === NG.me.uid); if (i >= 0 && $('recLine')) line.insertAdjacentHTML('beforeend', `<span class="lbl">${NG.icon('trophy', 12)} ${t('myRank', i + 1)}</span>`); } catch {}
+    });
+  }
+  $('againBtn').addEventListener('click', countdown);
+  $('rankBtn').addEventListener('click', () => { location.href = 'index.html?tab=rank&g=' + GAME; });
+  $('homeBtn').addEventListener('click', () => { location.href = 'index.html'; });
+  showIntro();
+})();
+</script>
+</body>
+</html>
