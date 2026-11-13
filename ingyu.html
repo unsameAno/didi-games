@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>잉규게임 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 잉규게임 — 서로 주제어를 정해 주고 질문으로 맞히기. 모바일 우선: 위(차례·질문 고정) / 가운데(참가자·채팅) / 아래 고정(입력) */
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; }
+  .head { position: sticky; top: 0; z-index: 6; background: var(--bg); padding-bottom: 12px; }
+  .head .top { position: static; }
+  .top h1 { font-size: 15px; }
+  .top button { min-height: 36px; padding: 6px 12px; font-size: 13px; margin: 0; }
+  .col { width: 100%; max-width: 560px; margin: 0 auto; padding: 0 15px; }
+  #pin { margin-top: 15px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; gap: 18px; padding-top: 6px; padding-bottom: 14px; }
+  .qcard { text-align: center; padding: 14px 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .qcard .lbl { font-size: 11px; color: var(--muted); font-weight: 700; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .qcard .lbl b { color: var(--mint); }
+  .qcard .q { font-size: clamp(17px, 5vw, 22px); font-weight: 700; color: var(--yellow); line-height: 1.45; word-break: break-word; text-shadow: 2px 2px 0 var(--ink); }
+  .qcard .q.wait { color: var(--muted); text-shadow: none; font-size: 14px; }
+  .qcard .sub { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .tbar { width: 100%; height: 8px; background: var(--ink); position: relative; }
+  .tbar i { position: absolute; inset: 0 auto 0 0; background: var(--mint); transition: width 1s linear; }
+  .tbar.hot i { background: var(--pink); }
+  .ansrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; padding: 3px 3px 0; }
+  .ansrow button, .ansrow .tal { padding: 8px 4px; font-size: 13px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; margin: 0; }
+  .ansrow .tal { background: var(--panel2); font-weight: 700; }
+  .ansrow b { font-size: 16px; }
+  .ansrow .y.on { background: var(--mint); color: #0b2a20; } .ansrow .n.on { background: var(--pink); color: #fff; } .ansrow .m.on { background: var(--yellow); color: #1a1426; }
+  .ansrow .y b { color: var(--mint); } .ansrow .n b { color: var(--pink); } .ansrow .m b { color: var(--yellow); }
+  .ansrow .on b { color: inherit; }
+  .cats { display: flex; flex-wrap: wrap; gap: 12px 10px; padding: 3px; }
+  .cats button { padding: 8px 12px; font-size: 13px; min-height: 40px; margin: 0; }
+  .cats button.on { background: var(--yellow); color: #1a1426; }
+  .row { display: flex; gap: 12px; padding: 3px; }
+  .row input { flex: 1; min-width: 0; padding: 12px; font-size: 16px; background: var(--ink); outline: none; border: 0; box-shadow: 0 -3px 0 0 var(--line), 0 3px 0 0 var(--line), -3px 0 0 0 var(--line), 3px 0 0 0 var(--line); }
+  .row input:focus { box-shadow: 0 -3px 0 0 var(--yellow), 0 3px 0 0 var(--yellow), -3px 0 0 0 var(--yellow), 3px 0 0 0 var(--yellow); }
+  .row button { flex-shrink: 0; white-space: nowrap; margin: 0; }
+  .setbox { display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+  .setbox .who { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; }
+  .setbox .who b { color: var(--yellow); }
+  .saved { font-size: 12px; color: var(--mint); } .saved.no { color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 14px; padding: 3px; }
+  .pc { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 10px; background: var(--panel); --dc: var(--ink); --dp: 5px; }
+  .pc .px { grid-row: 1 / span 2; }
+  .pc .nm { font-size: 12px; color: var(--muted); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+  .pc .wd { font-size: 16px; font-weight: 700; color: var(--text); word-break: break-all; line-height: 1.3; }
+  .pc .wd.hid { color: var(--purple); letter-spacing: 3px; }
+  .pc .tag { font-size: 10px; background: var(--ink); color: var(--muted); padding: 1px 5px; flex-shrink: 0; }
+  .pc.turn { --bc: var(--yellow); background: #3b3160; }
+  .pc.turn .px { animation: bob .8s steps(2) infinite; }
+  .pc.done { --bc: var(--mint); } .pc.done .tag { background: var(--mint); color: #0b2a20; }
+  .pc.gone { opacity: .45; }
+  .pc.ok .tag { background: var(--mint); color: #0b2a20; }
+  .endlist { display: flex; flex-direction: column; gap: 16px; padding: 3px; }
+  .endrow { display: grid; grid-template-columns: 30px 40px minmax(0, 1fr); gap: 10px; align-items: center; padding: 10px 12px; background: var(--panel); --dc: var(--ink); --dp: 5px; }
+  .endrow.me { --bc: var(--purple); }
+  .endrow .no { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; background: var(--line); color: var(--text); }
+  .endrow .no.m1 { background: var(--yellow); color: #1a1426; } .endrow .no.last { background: var(--pink); color: #fff; }
+  .endrow b { display: block; font-size: 14px; }
+  .endrow .wd { font-size: 16px; font-weight: 700; color: var(--yellow); word-break: break-all; }
+  .endrow small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chatc { padding: 12px; }
+  .chatc h3 { margin-bottom: 8px; }
+  .chatc .log { height: 150px; flex: none; }
+  .big-ic { animation: bob 1s steps(2) infinite; }
+  .acts { position: sticky; bottom: 0; z-index: 5; background: var(--bg); padding-top: 10px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
+  #btns { display: flex; gap: 12px; padding: 0 3px; }
+  #btns:empty { display: none; }
+  #btns button { flex: 1; font-size: 15px; padding: 10px 8px; margin: 0; display: inline-flex; align-items: center; justify-content: center; }
+  #btns .msg2 { flex: 1; text-align: center; color: var(--muted); font-size: 12px; padding: 4px; line-height: 1.6; }
+  .acts.guess .row input { box-shadow: 0 -3px 0 0 var(--pink), 0 3px 0 0 var(--pink), -3px 0 0 0 var(--pink), 3px 0 0 0 var(--pink); }
+</style>
+</head>
+<body>
+<div class="head">
+  <div class="top">
+    <span id="logoSlot"></span>
+    <h1><i data-ic="search" data-size="18"></i><span data-t="gameName"></span></h1>
+    <span class="code-chip" id="codeChip"></span>
+    <span class="pill hidden" id="catPill"></span>
+    <span class="grow"></span>
+    <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
+  </div>
+  <div class="col" id="pin"></div>
+</div>
+<div class="col wrap">
+  <div id="view"></div>
+  <div id="stat"></div>
+  <div class="card chatc"><h3><i data-ic="chat" data-size="14"></i><span data-t="chatLbl"></span></h3><div class="log" id="log"></div></div>
+</div>
+<div class="col acts" id="acts">
+  <div id="btns"></div>
+  <form class="row" id="form"><input id="inp" maxlength="60" autocomplete="off" enterkeyhint="send"><button class="btn-sub" id="sendBtn" type="submit"></button></form>
+</div>
+<canvas id="confetti"></canvas>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '잉규게임', chatLbl: '채팅', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요. 노란 코드를 누르면 복사돼요.`,
+      catLbl: '카테고리', catPick: '카테고리를 골라 주세요', catCustom: '직접 입력', catSet: '정하기', catNone: '방장이 카테고리를 고르는 중…', catIs: (c) => `카테고리: ${c}`,
+      need: (n) => `${n}명부터 시작할 수 있어요`, needCat: '카테고리를 먼저 골라 주세요', waitHost: '방장이 시작하기를 기다리는 중…', toSet: '주제어 정하러 가기',
+      setTitle: '주제어 정하기', setFor: (n) => `<b>${n}</b>님의 주제어를 정해 주세요`, setRule: '카테고리 안에서 골라 주세요. 게임이 시작되기 전까지 고칠 수 있어요.', wordPh: '주제어 (20자까지)', save: '저장', edit: '수정',
+      savedAs: (w) => `저장됨: 「${w}」`, notSaved: '아직 저장하지 않았어요', stDone: '입력 완료', stTyping: '입력 중…', confirmStart: '확정하고 시작', waitAll: (a, b) => `모두 입력하면 시작할 수 있어요 (${a}/${b})`, waitConfirm: '방장이 확정하기를 기다리는 중…', watching: '구경 중이에요. 다음 판부터 참여해요!',
+      turnOf: (n) => `<b>${n}</b>님 차례`, myTurn: '<b>내 차례!</b>', askWait: (n) => `${n}님의 질문을 기다리는 중…`, askMe: '질문을 하나 입력하세요. 바로 정답에 도전해도 돼요.', qBy: (n) => `${n}님의 질문`,
+      yes: '예', no: '아니오', mid: '애매해', askPh: '질문 입력 (1개만)', chatPh: '채팅', guessPh: '정답 (띄어쓰기 없이)', askBtn: '질문', sendBtn: '전송', goBtn: '도전!',
+      guessBtn: '정답 도전', cancel: '취소', passBtn: '넘기기', hidden: '???', rankTag: (n) => `${n}등`, youTag: '나', goneTag: '나감',
+      evOk: (n, w) => `🎉 ${n}님 정답! 주제어는 「${w}」`, evNo: (n, g) => `❌ ${n}님 오답: 「${g}」`, evPass: (n) => `${n}님이 차례를 넘겼어요`, evTime: (n) => `⏱ ${n}님 시간 초과`, evGone: (n) => `${n}님이 나가서 차례를 넘겨요`, evReset: '인원이 바뀌어서 주제어를 다시 정해요', evStart: '주제어 확정! 게임을 시작해요',
+      endTitle: '게임 종료', endSub: '맞힌 순서대로 순위예요', notSolved: '못 맞힘', lastTag: '꼴찌', givenBy: (n) => `정해 준 사람: ${n}`, againBtn: '한 판 더', toLobby: '로비로', players: (n) => `참가자 ${n}명`, dupQ: '질문은 한 차례에 하나만 할 수 있어요' },
+    ja: { gameName: 'インギュゲーム', chatLbl: 'チャット', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。黄色いコードを押すとコピーできます。`,
+      catLbl: 'カテゴリー', catPick: 'カテゴリーを選んでください', catCustom: '自由入力', catSet: '決定', catNone: 'ホストがカテゴリーを選んでいます…', catIs: (c) => `カテゴリー: ${c}`,
+      need: (n) => `${n}人から始められます`, needCat: '先にカテゴリーを選んでください', waitHost: 'ホストの開始を待っています…', toSet: 'お題を決めに行く',
+      setTitle: 'お題を決める', setFor: (n) => `<b>${n}</b>さんのお題を決めてください`, setRule: 'カテゴリーの中から選んでください。ゲームが始まるまで直せます。', wordPh: 'お題（20文字まで）', save: '保存', edit: '修正',
+      savedAs: (w) => `保存済み:「${w}」`, notSaved: 'まだ保存していません', stDone: '入力完了', stTyping: '入力中…', confirmStart: '確定してスタート', waitAll: (a, b) => `全員が入力すると始められます (${a}/${b})`, waitConfirm: 'ホストの確定を待っています…', watching: '見学中です。次のゲームから参加します！',
+      turnOf: (n) => `<b>${n}</b>さんの番`, myTurn: '<b>自分の番！</b>', askWait: (n) => `${n}さんの質問を待っています…`, askMe: '質問を1つ入力してください。すぐ答えに挑戦してもOK。', qBy: (n) => `${n}さんの質問`,
+      yes: 'はい', no: 'いいえ', mid: '微妙', askPh: '質問を入力（1つだけ）', chatPh: 'チャット', guessPh: '答え（スペースなし）', askBtn: '質問', sendBtn: '送信', goBtn: '挑戦！',
+      guessBtn: '答えに挑戦', cancel: 'キャンセル', passBtn: 'パス', hidden: '???', rankTag: (n) => `${n}位`, youTag: '自分', goneTag: '退出',
+      evOk: (n, w) => `🎉 ${n}さん正解！お題は「${w}」`, evNo: (n, g) => `❌ ${n}さん不正解:「${g}」`, evPass: (n) => `${n}さんがパスしました`, evTime: (n) => `⏱ ${n}さん時間切れ`, evGone: (n) => `${n}さんが退出したので次へ進みます`, evReset: '人数が変わったので、お題を決め直します', evStart: 'お題確定！ゲームスタート',
+      endTitle: 'ゲーム終了', endSub: '当てた順の順位です', notSolved: '当てられず', lastTag: '最下位', givenBy: (n) => `決めた人: ${n}`, againBtn: 'もう一回', toLobby: 'ロビーへ', players: (n) => `参加者 ${n}人`, dupQ: '質問は1ターンに1つだけです' },
+  });
+  const CATS = { ko: ['과일', '동물', '음식', '유명인', '캐릭터', '직업', '나라', '물건', '장소', '영화·드라마'], ja: ['果物', '動物', '食べ物', '有名人', 'キャラクター', '職業', '国', '物', '場所', '映画・ドラマ'] };
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const arr = (x) => Array.isArray(x) ? x : Object.values(x || {});
+  const GAME = 'ingyu', MIN = 3, TURN = 120;
+  document.title = `${t('gameName')} · DIDI Games`;
+
+  const code = NG.codeFromHash() || NG.genCode();
+  try { history.replaceState(null, '', '#' + code.toLowerCase()); } catch {}
+  const room = new NG.Room(GAME, code);
+  // state(방장이 관리): phase lobby→set→play→end · order: 고리 순서(order[i]가 order[i+1]의 주제어를 정함) · w: 확정된 주제어 {대상uid: {word, by}}
+  const fresh = () => ({ phase: 'lobby', gid: 0, cat: '', order: [], w: {}, turn: '', turnNo: 0, timeLeft: 0, done: [], ev: { n: 0 } });
+  let state = fresh();
+  // 방 안의 보조 경로: words/{gid}/{대상} 입력 중인 주제어 · turnq 이번 차례 질문 · ans/{차례키}/{uid} 대답 · act 차례인 사람의 정답 도전/넘기기
+  let words = {}, turnq = null, ans = {}, mode = 'chat', lastEv = 0, keys = {}, lastTurnKey = '';
+  const me = () => NG.me.uid;
+  const order = () => arr(state.order), done = () => arr(state.done);
+  const tkey = (st = state) => `${st.gid}_${st.turnNo}`;
+  const myIdx = () => order().indexOf(me());
+  const targetOf = (id) => { const o = order(), i = o.indexOf(id); return i < 0 ? null : o[(i + 1) % o.length]; };
+  const giverOf = (id) => { const o = order(), i = o.indexOf(id); return i < 0 ? null : o[(i - 1 + o.length) % o.length]; };
+  const myWords = () => words[state.gid] || {};
+  const savedCount = () => order().filter(id => { const tg = targetOf(id), w = myWords()[tg]; return w && w.by === id && w.word; }).length;
+  const curQ = () => turnq && turnq.key === tkey() && turnq.by === state.turn ? turnq : null;
+  const isMyTurn = () => state.phase === 'play' && state.turn === me();
+  const person = (id, size) => NG.avatarSVG(room.avOf(id), size);
+
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); $('codeChip').textContent = code; NG.bindCodeChip($('codeChip'), code);
+  const leave = async () => { try { await room.leave(); } catch {} location.href = 'index.html'; };
+  NG.bindLogo(document, () => room.leave());
+  $('leaveBtn').addEventListener('click', leave);
+  NG.touchProfile(GAME);
+
+  // ───── 방장 진행
+  const push = (patch, ev) => { const st = { ...state, ...patch }; if (ev) st.ev = { ...ev, n: ((state.ev && state.ev.n) || 0) + 1 }; state = st; room.pushState(st); };
+  function setCat(c) { c = String(c || '').trim().slice(0, 14); if (!room.isHost || state.phase !== 'lobby' || !c) return; push({ cat: c }); }
+  function startSet(ev) {
+    if (!room.isHost) return;
+    const ids = room.active().map(p => p.id); if (ids.length < MIN || !state.cat) return;
+    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+    for (const p of ['words', 'turnq', 'ans', 'act']) room.ref.child(p).remove().catch(() => {});
+    push({ ...fresh(), lang: state.lang || NG.ui, langSet: true, cat: state.cat, phase: 'set', gid: Date.now() % 100000000, order: ids }, ev);
+  }
+  function startPlay() {
+    if (!room.isHost || state.phase !== 'set' || savedCount() < order().length) return;
+    const w = {}; for (const id of order()) { const tg = targetOf(id); w[tg] = { word: String(myWords()[tg].word).slice(0, 20), by: id }; }
+    push({ phase: 'play', w, turn: order()[0], turnNo: 1, timeLeft: TURN, done: [] }, { type: 'start' });
+  }
+  function advance(st, ev) {
+    const d = arr(st.done), o = arr(st.order);
+    const left = o.filter(id => !d.includes(id) && room.players[id]);
+    if (left.length <= 1) {
+      state = st; push({ phase: 'end', turn: '', timeLeft: 0 }, ev);
+      const present = o.filter(id => room.players[id] || d.includes(id));
+      NG.recordResult(GAME, { winner: d[0] || null, players: present, scores: Object.fromEntries(present.map(id => [id, d.includes(id) ? (o.length - d.indexOf(id)) * 10 : 0])) });
+      return;
+    }
+    let i = o.indexOf(st.turn), next = null;
+    for (let k = 1; k <= o.length; k++) { const c = o[(i + k) % o.length]; if (left.includes(c)) { next = c; break; } }
+    state = st; push({ turn: next, turnNo: (st.turnNo || 0) + 1, timeLeft: TURN }, ev);
+  }
+  room.setHostLoop(() => {
+    const st = room.state; if (!room.isHost || !st) return; state = { ...fresh(), ...st };
+    if (st.phase === 'set') {
+      if (order().some(id => !room.players[id])) { if (room.active().length >= MIN) startSet({ type: 'reset' }); else push({ ...fresh(), lang: st.lang, langSet: true, cat: st.cat }, { type: 'reset' }); }
+    } else if (st.phase === 'play') {
+      if (!room.players[st.turn]) advance(state, { type: 'gone', uid: st.turn });
+      else if (st.timeLeft <= 1) advance(state, { type: 'time', uid: st.turn });
+      else { state = { ...state, timeLeft: st.timeLeft - 1 }; room.pushState(state); }
+    }
+  });
+  // 차례인 사람이 보낸 정답 도전/넘기기를 방장이 판정 (띄어쓰기·대소문자·가타카나/히라가나 차이는 무시, 그 밖의 오타는 오답)
+  function onAct(a) {
+    if (!room.isHost || !a || state.phase !== 'play' || a.key !== tkey() || a.by !== state.turn) return;
+    room.ref.child('act').remove().catch(() => {});
+    if (a.type === 'pass') { advance(state, { type: 'pass', uid: a.by }); return; }
+    const w = (state.w || {})[a.by]; const g = String(a.text || '').slice(0, 30);
+    if (w && NG.norm(g) && NG.norm(g) === NG.norm(w.word)) advance({ ...state, done: [...done(), a.by] }, { type: 'ok', uid: a.by, text: w.word });
+    else advance(state, { type: 'no', uid: a.by, text: g });
+  }
+
+  // ───── 내 행동
+  function saveWord() {
+    const inp = $('wordInp'); if (!inp || state.phase !== 'set') return; const tg = targetOf(me()); const w = inp.value.trim().slice(0, 20); if (!tg || !w) return;
+    room.ref.child(`words/${state.gid}/${tg}`).set({ word: w, by: me() }).catch(() => {}); inp.blur();
+  }
+  function submit() {
+    const inp = $('inp'); let v = inp.value.trim(); if (!v) return;
+    const m = curMode();
+    if (m === 'ask') { room.ref.child('turnq').set({ key: tkey(), by: me(), text: v.slice(0, 60) }).catch(() => {}); }
+    else if (m === 'guess') { v = v.replace(/\s+/g, ''); if (!v) return; room.ref.child('act').set({ key: tkey(), by: me(), type: 'guess', text: v.slice(0, 30), at: Date.now() }).catch(() => {}); mode = 'chat'; }
+    else room.sendChat(v);
+    inp.value = ''; render();
+  }
+  const curMode = () => !isMyTurn() ? 'chat' : mode === 'guess' ? 'guess' : (curQ() ? 'chat' : 'ask');
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); submit(); });
+  $('inp').addEventListener('input', () => { if (curMode() === 'guess') { const el = $('inp'), v = el.value.replace(/\s+/g, ''); if (v !== el.value) el.value = v; } });
+
+  // ───── 화면 (구역별로 내용이 바뀔 때만 다시 그림 → 입력 중인 글자가 지워지지 않음)
+  function draw(id, key, fn) { if (keys[id] === key) return; keys[id] = key; const el = $(id); el.innerHTML = ''; fn(el); }
+  function render() {
+    const st = state, ph = st.phase, o = order(), d = done(), list = room.playerList(), host = room.isHost;
+    if (tkey() !== lastTurnKey) { lastTurnKey = tkey(); mode = 'chat'; }
+    $('catPill').classList.toggle('hidden', !st.cat || ph === 'lobby'); $('catPill').textContent = st.cat || '';
+    const m = curMode(); const inp = $('inp');
+    inp.placeholder = t(m === 'ask' ? 'askPh' : m === 'guess' ? 'guessPh' : 'chatPh'); inp.maxLength = m === 'ask' ? 60 : m === 'guess' ? 30 : 40;
+    $('sendBtn').textContent = t(m === 'ask' ? 'askBtn' : m === 'guess' ? 'goBtn' : 'sendBtn'); $('sendBtn').className = m === 'guess' ? 'btn-main' : m === 'ask' ? 'btn-yellow' : 'btn-sub';
+    $('acts').classList.toggle('guess', m === 'guess');
+    const pk = list.map(p => p.id).join(',');
+
+    if (ph === 'lobby') {
+      draw('pin', ['l', st.cat, list.length, NG.ui].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('search', 48)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)} · ${st.cat ? `<b>${esc(t('catIs', st.cat))}</b>` : t('catNone')}</div></div>`; });
+      draw('view', ['l', host, st.cat].join('|'), (el) => {
+        if (!host) return;
+        const c = NG.el('div', 'card setbox'); c.innerHTML = `<div class="who">${t('catPick')}</div>`;
+        const w = NG.el('div', 'cats'); for (const name of CATS[NG.ui]) { const b = NG.el('button', name === st.cat ? 'on' : '', name); b.addEventListener('click', () => setCat(name)); w.appendChild(b); }
+        c.appendChild(w);
+        const r = NG.el('div', 'row'); r.innerHTML = `<input id="catInp" maxlength="14" placeholder="${t('catCustom')}" autocomplete="off"><button class="btn-ghost" id="catBtn">${t('catSet')}</button>`; c.appendChild(r); el.appendChild(c);
+        if (st.cat && !CATS[NG.ui].includes(st.cat)) r.querySelector('input').value = st.cat;
+        r.querySelector('button').addEventListener('click', () => setCat(r.querySelector('input').value));
+        r.querySelector('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); setCat(e.target.value); } });
+      });
+      draw('stat', ['l', pk, room.hostId()].join('|'), (el) => { const g = NG.el('div', 'grid'); for (const p of list) { const c = NG.el('div', 'pc pxb'); c.innerHTML = `${person(p.id, 36)}<span class="nm">${esc(room.nameOf(p.id))}${p.id === room.hostId() ? `<span class="tag">${t('host')}</span>` : ''}</span><span class="wd" style="font-size:11px;color:var(--muted)">${p.id === me() ? t('youTag') : ''}</span>`; g.appendChild(c); } el.appendChild(g); });
+      const n = room.active().length;
+      draw('btns', ['l', host, n >= MIN, !!st.cat].join('|'), (el) => {
+        if (host) { const b = NG.el('button', 'btn-main', n < MIN ? t('need', MIN) : !st.cat ? t('needCat') : t('toSet')); b.disabled = n < MIN || !st.cat; b.addEventListener('click', () => startSet()); el.appendChild(b); }
+        else el.appendChild(NG.el('div', 'msg2', n < MIN ? t('need', MIN) : t('waitHost')));
+      });
+    }
+
+    else if (ph === 'set') {
+      const tg = targetOf(me()), mine = tg ? myWords()[tg] : null, saved = mine && mine.by === me() ? mine.word : '';
+      draw('pin', ['s', st.gid, st.cat].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="lbl">${t('catLbl')}</div><div class="q">${esc(st.cat)}</div><div class="sub">${t('setRule')}</div></div>`; });
+      draw('view', ['s', st.gid, tg, saved].join('|'), (el) => {
+        if (!tg) { el.appendChild(NG.el('div', 'card qcard', t('watching'))); return; }
+        const c = NG.el('div', 'card setbox');
+        c.innerHTML = `<div class="who">${person(tg, 40)}<span>${t('setFor', esc(room.nameOf(tg)))}</span></div><div class="row"><input id="wordInp" maxlength="20" placeholder="${t('wordPh')}" autocomplete="off" enterkeyhint="done"><button class="btn-yellow" id="wordBtn">${t(saved ? 'edit' : 'save')}</button></div><div class="saved${saved ? '' : ' no'}">${saved ? esc(t('savedAs', saved)) : t('notSaved')}</div>`;
+        el.appendChild(c); const wi = c.querySelector('#wordInp'); wi.value = saved || '';
+        c.querySelector('#wordBtn').addEventListener('click', saveWord); wi.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveWord(); } });
+      });
+      const okOf = (id) => { const x = targetOf(id), w = myWords()[x]; return !!(w && w.by === id && w.word); };
+      draw('stat', ['s', st.gid, o.map(id => okOf(id) ? 1 : 0).join(''), pk].join('|'), (el) => { const g = NG.el('div', 'grid'); for (const id of o) { const c = NG.el('div', 'pc pxb' + (okOf(id) ? ' ok' : '')); c.innerHTML = `${person(id, 36)}<span class="nm">${esc(room.nameOf(id))}</span><span class="nm"><span class="tag">${t(okOf(id) ? 'stDone' : 'stTyping')}</span></span>`; g.appendChild(c); } el.appendChild(g); });
+      const sc = savedCount();
+      draw('btns', ['s', host, sc, o.length].join('|'), (el) => {
+        if (host) { const b = NG.el('button', 'btn-main', sc >= o.length ? t('confirmStart') : t('waitAll', sc, o.length)); b.disabled = sc < o.length; b.addEventListener('click', startPlay); el.appendChild(b); }
+        else el.appendChild(NG.el('div', 'msg2', sc >= o.length ? t('waitConfirm') : t('waitAll', sc, o.length)));
+      });
+    }
+
+    else if (ph === 'play') {
+      const q = curQ(), mt = isMyTurn(), a = ans[tkey()] || {}, cnt = { y: 0, n: 0, m: 0 }; for (const v of Object.values(a)) if (cnt[v] != null) cnt[v]++;
+      draw('pin', ['p', tkey(), q ? q.text : '', JSON.stringify(a), mt].join('|'), (el) => {
+        const c = NG.el('div', 'card qcard');
+        c.innerHTML = `<div class="lbl">${person(st.turn, 20)} ${mt ? t('myTurn') : t('turnOf', esc(room.nameOf(st.turn)))} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div><div class="tbar" id="tbar"><i id="tfill" style="width:${Math.max(0, (st.timeLeft - 1) / (TURN - 1) * 100)}%"></i></div>`
+          + (q ? `<div class="q">${esc(q.text)}</div>` : `<div class="q wait">${mt ? t('askMe') : esc(t('askWait', room.nameOf(st.turn)))}</div>`);
+        if (q) {
+          const r = NG.el('div', 'ansrow');
+          for (const [k, lb] of [['y', 'yes'], ['n', 'no'], ['m', 'mid']]) {
+            if (mt) { const x = NG.el('div', 'tal pxb ' + k); x.innerHTML = `<span>${t(lb)}</span><b>${cnt[k]}</b>`; r.appendChild(x); }
+            else { const b = NG.el('button', k + (a[me()] === k ? ' on' : '')); b.innerHTML = `<span>${t(lb)}</span><b>${cnt[k]}</b>`; b.addEventListener('click', () => room.ref.child(`ans/${tkey()}/${me()}`).set(k).catch(() => {})); r.appendChild(b); }
+          }
+          c.appendChild(r);
+        }
+        el.appendChild(c);
+      });
+      const tl = $('tleft'); if (tl) { tl.textContent = NG.fmtTime(st.timeLeft); $('tfill').style.width = Math.max(0, (st.timeLeft - 1) / (TURN - 1) * 100) + '%'; $('tbar').classList.toggle('hot', st.timeLeft <= 15); }
+      draw('view', 'p', () => {});
+      draw('stat', ['p', st.gid, st.turn, d.join(','), pk].join('|'), (el) => {
+        const g = NG.el('div', 'grid');
+        for (const id of o) {
+          const solved = d.includes(id), gone = !room.players[id], mineHidden = id === me() && !solved, w = (st.w || {})[id] || {};
+          const c = NG.el('div', 'pc pxb' + (id === st.turn ? ' turn' : '') + (solved ? ' done' : '') + (gone ? ' gone' : ''));
+          c.innerHTML = `${person(id, 36)}<span class="nm">${esc(room.nameOf(id))}${id === me() ? `<span class="tag">${t('youTag')}</span>` : ''}${solved ? `<span class="tag">${t('rankTag', d.indexOf(id) + 1)}</span>` : gone ? `<span class="tag">${t('goneTag')}</span>` : ''}</span><span class="wd${mineHidden ? ' hid' : ''}">${mineHidden ? t('hidden') : esc(w.word || '')}</span>`;
+          g.appendChild(c);
+        }
+        el.appendChild(g);
+      });
+      draw('btns', ['p', tkey(), mt, mode].join('|'), (el) => {
+        if (!mt) return;
+        const b1 = NG.el('button', mode === 'guess' ? 'btn-ghost' : 'btn-main', t(mode === 'guess' ? 'cancel' : 'guessBtn'));
+        b1.addEventListener('click', () => { mode = mode === 'guess' ? 'chat' : 'guess'; $('inp').value = ''; render(); $('inp').focus(); });
+        const b2 = NG.el('button', 'btn-ghost', t('passBtn')); b2.addEventListener('click', () => room.ref.child('act').set({ key: tkey(), by: me(), type: 'pass', at: Date.now() }).catch(() => {}));
+        el.append(b1, b2);
+      });
+    }
+
+    else if (ph === 'end') {
+      draw('pin', ['e', st.gid].join('|'), (el) => { el.innerHTML = `<div class="card qcard"><div class="big-ic">${NG.icon('trophy', 40)}</div><div class="q">${t('endTitle')}</div><div class="sub">${t('endSub')} · ${esc(t('catIs', st.cat))}</div></div>`; });
+      draw('view', 'e', () => {});
+      draw('stat', ['e', st.gid, pk].join('|'), (el) => {
+        const rest = o.filter(id => !d.includes(id)); const all = [...d, ...rest]; const w = NG.el('div', 'endlist');
+        all.forEach((id, i) => {
+          const solved = d.includes(id), x = (st.w || {})[id] || {}; const row = NG.el('div', 'endrow pxb' + (id === me() ? ' me' : ''));
+          row.innerHTML = `<span class="no${i === 0 && solved ? ' m1' : !solved ? ' last' : ''}">${solved ? i + 1 : '×'}</span>${person(id, 40)}<div><b>${esc(room.nameOf(id))} ${solved ? '' : `<span style="font-size:11px;color:var(--pink)">${t('notSolved')}</span>`}</b><span class="wd">${esc(x.word || '')}</span><small>${esc(t('givenBy', x.by ? room.nameOf(x.by) : '?'))}</small></div>`;
+          w.appendChild(row);
+        });
+        el.appendChild(w);
+      });
+      draw('btns', ['e', host, room.active().length >= MIN].join('|'), (el) => {
+        if (host) { const b = NG.el('button', 'btn-main', t('againBtn')); b.disabled = room.active().length < MIN; b.addEventListener('click', () => push({ ...fresh(), lang: state.lang, langSet: true, cat: state.cat, ev: state.ev })); el.appendChild(b); }   // 대기실로 돌아가 카테고리를 바꾸거나 그대로 다시 시작
+        const h = NG.el('button', 'btn-ghost', t('toLobby')); h.addEventListener('click', leave); el.appendChild(h);
+      });
+    }
+  }
+
+  // 방장이 남긴 진행 알림을 채팅창에 표시
+  function showEv(ev) {
+    if (!ev || !ev.n || ev.n <= lastEv) return; lastEv = ev.n; const n = ev.uid ? room.nameOf(ev.uid) : '';
+    const map = { ok: ['win', t('evOk', n, ev.text)], no: ['close', t('evNo', n, ev.text)], pass: ['sys', t('evPass', n)], time: ['sys', t('evTime', n)], gone: ['sys', t('evGone', n)], reset: ['sys', t('evReset')], start: ['sys', t('evStart')] };
+    const m = map[ev.type]; if (!m) return; NG.addMsg(m[0], '', m[1]);
+    if (ev.type === 'ok' && ev.uid === me()) NG.confetti();
+  }
+  let first = true;
+  room.on('state', (s) => { state = { ...fresh(), ...(s || {}) }; if (first) { first = false; lastEv = (state.ev && state.ev.n) || 0; } else showEv(state.ev); render(); });
+  room.on('players', (list, info) => { for (const n of (info && info.notes) || []) NG.addMsg('sys', '', n); render(); });
+  room.on('chat', (m) => NG.addMsg('', m.name, m.text));
+
+  room.join(fresh()).then(r => {
+    if (r.error) { location.href = 'index.html?err=' + encodeURIComponent(r.error); return; }
+    room.listen(room.ref.child('words'), 'value', (s) => { words = s.val() || {}; render(); });
+    room.listen(room.ref.child('turnq'), 'value', (s) => { turnq = s.val(); render(); });
+    room.listen(room.ref.child('ans'), 'value', (s) => { ans = s.val() || {}; render(); });
+    room.listen(room.ref.child('act'), 'value', (s) => onAct(s.val()));
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>

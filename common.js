@@ -38,6 +38,11 @@
       info: { time: { ko: '약 5분', ja: '約5分' }, tip: { ko: '4명 이상 추천', ja: '4人以上がおすすめ' }, rules: {
         ko: ['주제가 나오면 가장 어울리는 사람을 한 명 골라요.', '무기명 투표라 누가 골랐는지는 아무도 몰라요.', '가장 많이 뽑힌 사람만 공개! 10개 주제를 돌아요.'],
         ja: ['お題が出たら、一番似合いそうな人を1人選びます。', '匿名投票なので、誰が選んだかは分かりません。', '一番多く選ばれた人だけ発表！お題は10個です。'] } } },
+    { id: 'ingyu', type: 'multi', page: 'ingyu.html', icon: 'search', min: 3, max: 10, name: { ko: '잉규게임', ja: 'インギュゲーム' },
+      desc: { ko: '서로 주제어를 정해 주고 질문으로 맞히기 (구 양세찬 게임)', ja: 'お互いにお題を決めて、質問で当てよう（私は誰でしょうゲーム）' }, rank: { field: 'wins', label: { ko: '승리', ja: '勝利' } },
+      info: { time: { ko: '약 10~20분', ja: '約10〜20分' }, rules: {
+        ko: ['서로 다음 사람의 주제어를 정해 줘요. 내 주제어는 나만 못 봐요.', '내 차례에 질문을 하나 하면 친구들이 예 / 아니오 / 애매해로 답해요.', '먼저 맞힐수록 순위가 높아요. 정답은 띄어쓰기 없이, 오타는 오답!'],
+        ja: ['次の人のお題をお互いに決めます。自分のお題は自分だけ見えません。', '自分の番に質問を1つすると、みんなが「はい／いいえ／微妙」で答えます。', '早く当てるほど順位が上。答えはスペースなし、打ち間違いは不正解！'] } } },
     { id: 'react', type: 'solo',  page: 'react.html', icon: 'bolt', min: 1, max: 1, name: { ko: '반응속도 테스트', ja: '反射神経テスト' },
       desc: { ko: '초록불이 켜지면 바로 터치!', ja: '緑になったらすぐタップ！' }, rank: { field: 'avg', label: { ko: '평균 기록', ja: '平均記録' }, asc: true, unit: 'ms' },
       info: { time: { ko: '약 1분', ja: '約1分' }, rules: {
@@ -203,6 +208,7 @@
     home: ['....kk....', '...kppk...', '..kppppk..', '.kppppppk.', 'kkkkkkkkkk', '.kwwwwwwk.', '.kwwkkwwk.', '.kwwkykwk.', '.kkkkkkkk.'],
     play: ['kk......', 'kwkk....', 'kwwwkk..', 'kwwwwwk.', 'kwwwwwk.', 'kwwwkk..', 'kwkk....', 'kk......'],
     target: ['...kkkk...', '.kkrrrrkk.', '.krwwwwrk.', 'krwwrrwwrk', 'krwrrrrwrk', 'krwrrrrwrk', 'krwwrrwwrk', '.krwwwwrk.', '.kkrrrrkk.', '...kkkk...'],
+    search: ['..kkkk....', '.kwwwwk...', 'kwggggwk..', 'kwggggwk..', 'kwggggwk..', 'kwggggwk..', '.kwwwwkk..', '..kkkkbbk.', '......kbbk', '.......kk.'],
     who: ['..kkkkkk..', '.kvvvvvvk.', 'kvvwwwwvvk', 'kvwvvvvwvk', 'kvvvvvwwvk', 'kvvvvwwvvk', 'kvvvvwvvvk', 'kvvvvvvvvk', 'kvvvvwvvvk', '.kvvvvvvk.', '..kkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],
     back: ['...kk.....', '..kwk.....', '.kwwkkkkk.', 'kwwwwwwwwk', '.kwwkkkkk.', '..kwk.....', '...kk.....'],

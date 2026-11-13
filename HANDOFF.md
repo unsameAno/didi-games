@@ -4,8 +4,8 @@
 친구들과 폰으로 즐기는 실시간 미니게임 플랫폼(멀티 + 1인). 가입 없이 닉네임만으로 입장. Netlify(정적 호스팅) + Firebase Realtime Database(실시간 통신). 한국어/일본어 지원. **모바일 우선**(PC는 넓혀서 대응), **도트(픽셀) 디자인**으로 통일.
 
 ## 배포·인프라
-- 사이트: https://silver-marigold-c5055f.netlify.app (Netlify, 사용자 계정으로 로그인됨)
-- 배포 방법: 파일들을 zip으로 묶어(압축 루트에 index.html) Netlify 프로젝트의 Deploys 탭에 드래그. 사용자가 직접 함. Claude 작업 공간에서는 Netlify·Firebase 주소에 접속할 수 없음 → 새 세션에서는 사용자에게 zip을 첨부받아 시작.
+- 사이트: **GitHub Pages로 이전 중** — 저장소 `unsameAno/didi-games`(Public), 예상 주소 https://unsameano.github.io/didi-games/ (Settings → Pages → main / root). 이전 주소: https://silver-marigold-c5055f.netlify.app (Netlify 무료 플랜은 배포 1번에 15크레딧·월 300크레딧이라 이전하기로 함)
+- 배포 방법: zip을 풀어서 나온 파일들을 GitHub 저장소의 Add file → Upload files에 끌어다 놓고 Commit(같은 이름은 덮어씀, 1~2분 뒤 반영). 사용자가 직접 함. 수정은 모아서 한 번에. Claude 작업 공간에서는 Netlify·Firebase 주소에 접속할 수 없음 → 새 세션에서는 사용자에게 zip을 첨부받아 시작.
 - Firebase 프로젝트 `ngmind` (Realtime Database, asia-southeast1). 설정값은 common.js 상단 `firebaseConfig`에 하드코딩 (공개 가능한 값).
   - ⚠️ DB 보안 규칙이 "테스트 모드"라 **2026년 12월 중순쯤 자동으로 잠김**. 그때 게임이 "오프라인"이 되면 Firebase 콘솔 → Realtime Database → 규칙에서 `".read": true, ".write": true`로 바꾸도록 안내할 것.
 - 폰트: 도트 폰트 Galmuri(갈무리, 한글·일본어 지원)를 CDN으로 불러옴(`common.css` 맨 위 @import, jsdelivr `galmuri@latest`). 못 불러오면 Noto Sans KR로 대체.
@@ -18,6 +18,7 @@
 - `react.html` — **반응속도 테스트(1인 게임, v2에서 새로 만듦)**. 방·코드 없음. 화면 전체가 터치 패드: 소개 → 빨강(1.5~4.5초 랜덤) → 초록에서 터치 → 기록 표시, 5회. 초록 전 터치=반칙(그 라운드 다시), 90ms 미만=찍기 반칙. 결과: 평균·가장 빠름·가장 느림·반칙 수·막대 그래프, 최고 기록 경신 표시, 현재 순위. 랭킹은 **평균(avg) 낮은 순**. PC는 스페이스/엔터.
 - `who.html` — **누구 누구 / だれだれ (멀티, 3~10명, 아이스 브레이킹)**. 주제("~할 것 같은 사람")가 나오면 각자 한 명에게 무기명 투표(20초, 자기 자신 불가, 고르고 아래 '투표하기'로 확정) → 1등(동점이면 공동)과 득표수만 공개(7초) → 10개 주제 후 각자 가장 많이 뽑힌 주제(최대 3개) 칭호, 0번이면 '아직 미스터리한 사람'. 랭킹·채팅 없음. 주제는 기본 120 + 매운맛 40을 섞어서 출제(파일 안 `BASIC`/`SPICY`, 한 줄에 `한국어 | 日本語`, 줄 순서가 주제 ID). 같은 방에서 나온 주제는 다시 안 나옴(`used`). **언어가 달라도 같은 방 가능**(`anyLang`) — 각자 자기 언어로 주제를 봄. 저장: `tally/{gid_round}/{뽑힌 uid}`=표 수, `voted/{gid_round}/{투표한 uid}`=true (누가 누구를 골랐는지는 저장하지 않음), state.wins[uid]="주제번호:표수,…".
 - `aim.html` — **에임 테스트 / エイムテスト (1인)**. 30초 동안 정사각형 영역에 원(영역의 18%, 고정 크기)이 하나씩 랜덤 위치에 나타나고, 맞히면 다음 원. 빗나가면 개수는 그대로, 남은 시간 -0.5초(누른 자리에 작은 '-0.5초' + 타이머 칸이 잠깐 분홍). 터치는 4px 여유. 결과: 맞힌 개수·정확도·빗나감·최고 기록 경신·순위. 랭킹은 맞힌 개수(hits) 많은 순 + 그 판의 정확도(acc). 폰/PC 구분 없음. 기록은 `NG.recordTop`.
+- `ingyu.html` — **잉규게임 / インギュゲーム (멀티, 3~10명, 같은 언어끼리만; 구 양세찬 게임)**. 대기실에서 방장이 카테고리 선택(목록 10개 또는 직접 입력, 채팅으로 상의) → 주제어 정하기: 앱이 순서를 섞어 고리로 배정(order[i]가 order[i+1]의 주제어 입력, 시작 전까지 수정 가능, 모두 저장하면 방장이 '확정하고 시작' → state.w에 복사되어 잠김) → 차례(2분): 질문 1개를 보내면 위쪽에 고정, 다른 사람은 예/아니오/애매해 버튼(집계 표시)+채팅, 차례인 사람은 '정답 도전'(차례당 1번, 질문 없이도 가능) 또는 '넘기기' → 맞히면 탈출·순위, 미해결 1명 남으면 종료(주제어·정해 준 사람 공개). 정답 비교는 `NG.norm`(띄어쓰기·대소문자·가나 차이 무시), 오타는 오답, 정답 인정 기능 없음. 랭킹: 1등=승리, 점수는 순위별. 경로: `words/{gid}/{대상}`, `turnq`, `ans/{gid_turnNo}/{uid}`, `act`(방장이 판정), state.ev(진행 알림). 주의: 자기 주제어 숨김은 화면에서만 가리는 것(DB에는 있음).
 - `HANDOFF.md` — 이 문서.
 
 ## Firebase 데이터 구조
@@ -43,7 +44,7 @@
 - 플랫폼 이름 DIDI Games, 그림 게임 이름 Draw Mind, 반응속도 게임 이름 반응속도 테스트(反射神経テスト).
 
 ## 작업 규칙 (Claude가 지킬 것)
-- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html react.html aim.html common.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
+- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html ingyu.html react.html aim.html common.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
 - 화면 확인: 작업 공간의 google-chrome + playwright로 390×844(폰)·1280×800(PC) 스크린샷. Firebase·폰트 CDN은 막혀 있으니 오프라인 상태 화면으로 확인(실제 동작은 사용자 테스트).
 - 새 게임 추가 시: `NG.GAMES`에 등록(id, type, page, icon(픽셀 아이콘 이름), name/desc ko·ja, min/max, rank{field, asc, unit}) + `{id}.html` 작성(멀티는 draw.html, 1인은 react.html을 템플릿으로) + 다국어 `NG.addT`. 필요한 아이콘은 common.js `ICONS`에 문자열 도트로 추가.
 - 모든 문구는 ko/ja 둘 다. 방 안에서 언어가 섞이지 않게.
@@ -58,6 +59,7 @@
 - Draw Mind 화면 도트 디테일 다듬기(그림판 도구 아이콘화, 메시지 이모지 → 픽셀 아이콘)
 
 ## 아직 검증 안 된 것
+- 잉규게임: 가짜 DB로 4명 한 판 자동 테스트 통과(오답·정답·넘기기·순위·기록). 실제 여러 기기, 채팅 표시, 중간 퇴장 처리는 미확인.
 - 에임 테스트: 가짜 DB로 자동 플레이 통과(빗나감 4번 → 2초 감소, 기록 저장 확인). 실기기 터치 체감·랭킹 표시는 미확인.
 - 누구 누구: 가짜 DB로 한 판 끝까지 자동 테스트는 통과. 실제 Firebase·여러 기기·한일 혼합 방은 미확인.
 - v2 도트 리디자인 실기기 확인(특히 Galmuri 폰트 로딩, iPhone 안전 영역, 아래 탭바).
