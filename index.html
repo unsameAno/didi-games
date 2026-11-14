@@ -26,7 +26,9 @@
 
   .sec.hidden { display: none; }
   .gic.btm, .ic.btm, .info-ic.btm { align-items: flex-end !important; }
-  .gcard .gic .pxi, .rroom .ic .pxi, .info-ic .pxi { margin: 0; }   /* 버튼 안 아이콘에 붙는 오른쪽 여백(6px)을 없애야 정가운데 */
+  .gcard .gic .pxi, .rroom .ic .pxi, .info-ic .pxi { margin: 0; }
+  /* 썸네일 그림은 정가운데보다 도트 한 칸만큼 아래로 (바닥에 붙이는 그림은 제외) */
+  .gcard .gic:not(.btm) .pxi { transform: translateY(3px); } .info-ic:not(.btm) .pxi { transform: translateY(4px); } .rroom .ic:not(.btm) .pxi { transform: translateY(2px); }   /* 버튼 안 아이콘에 붙는 오른쪽 여백(6px)을 없애야 정가운데 */
   .gsec + .gsec { margin-top: 30px; }
   .gsec-h { display: flex; align-items: center; gap: 8px; margin: 0 2px 14px; }
   .gsec-h h2 { font-size: 16px; color: var(--text); }
