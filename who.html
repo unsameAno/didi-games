@@ -58,6 +58,7 @@
   <span class="code-chip" id="codeChip"></span>
   <span class="pill" id="roundPill"></span>
   <span class="grow"></span>
+  <button class="btn-danger hidden" id="stopBtn"></button>
   <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
 </div>
 <div class="wrap" id="view"></div>
@@ -297,6 +298,9 @@
     room.ref.child('tally').remove().catch(() => {}); room.ref.child('voted').remove().catch(() => {});
     nextRound({ ...fresh(), lang: state.lang || NG.ui, langSet: true, gid: Date.now() % 100000000 });
   }
+  // 게임 중단(방장): 대기실로 돌아가고 이 판은 칭호·뱃지를 기록하지 않음
+  const stopper = NG.bindStop(room, { btn: $('stopBtn'), playing: () => state.phase === 'ask' || state.phase === 'reveal',
+    stop: (keep) => { room.ref.child('tally').remove().catch(() => {}); room.ref.child('voted').remove().catch(() => {}); room.pushState({ ...fresh(), ...keep }); } });
   function toReveal(st) {
     const res = {}; const tl = tally[rkey(st)] || {};
     for (const id of arr(st.cands)) if (tl[id] > 0) res[id] = tl[id];
@@ -329,6 +333,7 @@
   const person = (id, size) => `${NG.avatarSVG(room.avOf(id), size)}`;
   function render(force) {
     const st = state, ph = st.phase;
+    stopper.sync(st);
     $('roundPill').classList.toggle('hidden', ph === 'lobby' || ph === 'end');
     $('roundPill').textContent = t('roundPill', st.round, st.total || TOTAL);
     const key = [ph, rkey(st), hasVoted(), sel, votedCount(), room.playerList().map(p => p.id).join(','), room.isHost, NG.ui].join('|');

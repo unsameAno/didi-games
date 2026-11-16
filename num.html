@@ -136,7 +136,7 @@
     cancelAnimationFrame(raf);
     const raw = (performance.now() - t0) / 1000, time = Math.round((raw + misses * PEN) * 100) / 100;
     result = { time, raw, misses }; phase = 'result'; render();
-    if (NG.Badge) NG.Badge.run({ f_plays: 1, f_eagle: time <= 10, f_doctor: time <= 15, f_slow: misses === 0, f_slip: misses >= 5 });
+    if (NG.Badge) NG.Badge.run({ f_plays: 1, f_calc: time <= 8, f_eagle: time <= 10, f_doctor: time <= 15, f_slow: misses === 0, f_slip: misses >= 5 });
     const prevBest = best;
     NG.recordSolo(GAME, { time }).then(async (res) => {
       const line = $('recLine'); if (!line) return;

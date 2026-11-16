@@ -123,6 +123,7 @@
     <span class="code-chip" id="codeChip"></span>
     <span class="pill hidden" id="catPill"></span>
     <span class="grow"></span>
+    <button class="btn-danger hidden" id="stopBtn"></button>
     <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
   </div>
   <div class="col" id="pin"></div>
@@ -225,6 +226,9 @@
     const w = {}; for (const id of order()) { const tg = targetOf(id); w[tg] = { word: String(myWords()[tg].word).slice(0, 20), by: id }; }
     push({ phase: 'play', w, turn: order()[0], turnNo: 1, timeLeft: TURN, done: [] }, { type: 'start' });
   }
+  // 게임 중단(방장): 대기실로 돌아가고 이 판은 랭킹·뱃지를 기록하지 않음 (카테고리는 유지)
+  const stopper = NG.bindStop(room, { btn: $('stopBtn'), playing: () => state.phase === 'set' || state.phase === 'play',
+    stop: (keep) => { for (const p of ['words', 'turnq', 'ans', 'act', 'qlog']) room.ref.child(p).remove().catch(() => {}); push({ ...fresh(), ...keep, cat: state.cat || '', ev: state.ev || { n: 0 } }); } });
   function advance(st, ev) {
     const d = arr(st.done), o = arr(st.order);
     const left = o.filter(id => !d.includes(id) && room.players[id]);
@@ -313,6 +317,7 @@
   function draw(id, key, fn) { if (keys[id] === key) return; keys[id] = key; const el = $(id); el.innerHTML = ''; fn(el); }
   function render() {
     const st = state, ph = st.phase, o = order(), d = done(), list = room.playerList(), host = room.isHost;
+    stopper.sync(st);
     if (tkey() !== lastTurnKey) { lastTurnKey = tkey(); mode = 'chat'; }
     $('catPill').classList.toggle('hidden', !st.cat || ph === 'lobby'); $('catPill').textContent = st.cat || '';
     const m = curMode(); const inp = $('inp');
@@ -430,7 +435,7 @@
   }
   let first = true, bGuess = 0, bPass = 0, bGid = 0;
   room.on('state', (s) => { const pp = state.phase; state = { ...fresh(), ...(s || {}) };
-    if (NG.Badge && state.phase === 'end' && pp === 'play' && bGid !== state.gid && order().includes(me())) { bGid = state.gid; NG.Badge.run({ i_plays: 1, i_first: done()[0] === me(), i_last: !done().includes(me()), i_pass5: bPass >= 5 }); } if (first) { first = false; lastEv = (state.ev && state.ev.n) || 0; } else showEv(state.ev); render(); });
+    if (NG.Badge && state.phase === 'end' && pp === 'play' && bGid !== state.gid && order().includes(me())) { bGid = state.gid; NG.Badge.run({ i_plays: 1, i_first: done()[0] === me(), i_last: !done().includes(me()), i_pass5: bPass >= 5 }); } if (first) { first = false; lastEv = (state.ev && state.ev.n) || 0; } else { if (((state.ev && state.ev.n) || 0) < lastEv) lastEv = 0; showEv(state.ev); } render(); });
   room.on('players', (list, info) => { for (const n of (info && info.notes) || []) NG.addMsg('sys', '', n); render(); });
   room.on('chat', (m) => NG.addMsg('', m.name, m.text));
 

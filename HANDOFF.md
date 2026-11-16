@@ -1,4 +1,4 @@
-# DIDI Games — 인수인계 문서 (2026-11-16 기준, v5.1: 숫자 찾기 + 똥피하기 + PC 채팅 스크롤)
+# DIDI Games — 인수인계 문서 (2026-11-16 기준, v5.3: 멀티 게임 중단 기능 + 뱃지 상세창 게임 표시 + 8초 뱃지)
 
 ## 한 줄 요약
 친구들과 폰으로 즐기는 실시간 미니게임 플랫폼(멀티 + 1인). 가입 없이 닉네임만으로 입장. GitHub Pages(정적 호스팅) + Firebase Realtime Database(실시간 통신). 한국어/일본어 지원. **모바일 우선**(PC는 넓혀서 대응), **도트(픽셀) 디자인**으로 통일.
@@ -22,10 +22,10 @@
 - `aim.html` — **에임 테스트(1인)**. 30초 동안 원 맞히기. 빗나가면 -0.5초. 랭킹은 맞힌 개수(hits) 많은 순.
 - `ingyu.html` — **잉규게임(멀티, 3~10명, 같은 언어끼리)**. 카테고리 선택 → 고리로 주제어 배정 → 내 차례에 '질문하기' 팝업으로 질문(turnq + qlog/{gid}에 기록) → 예/아니오 답 → 정답 도전. 질문 기록 패널(내 질문/전체). PC는 오른쪽에 질문 기록+채팅 고정. 랭킹: 1등=승리.
 - `mafia.html` — **마피아(멀티, 4~15명, 같은 언어끼리)**. 역할 11종+시민. 낮/밤/투표 사이클. 소리(speechSynthesis + Web Audio 합성).
-- `num.html` — **숫자 찾기 / 数字さがし(1인)**. 3·2·1 카운트다운 → 5×5에 섞인 1~25를 순서대로 터치, 틀리면 +0.5초. 기록=time(초, 소수 둘째자리), 랭킹 낮은 순(`recordSolo`). 썸네일 아이콘 `grid`. 뱃지 카운터: f_plays, f_eagle(≤10초), f_doctor(≤15초), f_slow(실수 0), f_slip(실수 5+, 숨김).
+- `num.html` — **숫자 찾기 / 数字さがし(1인)**. 3·2·1 카운트다운 → 5×5에 섞인 1~25를 순서대로 터치, 틀리면 +0.5초. 기록=time(초, 소수 둘째자리), 랭킹 낮은 순(`recordSolo`). 썸네일 아이콘 `grid`. 뱃지 카운터: f_plays, f_calc(≤8초), f_eagle(≤10초), f_doctor(≤15초), f_slow(실수 0), f_slip(실수 5+, 숨김).
 - `dodge.html` — **똥피하기 / うんち避け(1인)**. canvas(논리 폭 360, 높이는 화면 비율). 화면 왼/오른쪽 절반을 누르고 있으면 이동(멀티터치), PC는 ←→/A·D. 시간 지날수록 똥 개수·속도 증가(LV=10초마다). 기록=time(초) 높을수록 좋음(`recordTop`). 아이콘 `poop`, 캐릭터는 내 아바타. 뱃지: p_30, p_60, p_fast(3초 안 맞음·숨김), p_still(안 움직이고 10초·숨김), p_plays. ⚠️ 무대 클래스는 `.field` (common.css의 `.stage`와 겹치지 않게).
 - `nunchi.html` — **눈치 게임 / 空気読みゲーム(3~15명, 언어 무관)**. 단판 20초. 누르면 `press/{gid}/{uid} = NG.now()` 기록 → 방장이 판정(`WINDOW=0.3s`, `GRACE=0.5s`). 세 가지 종료: `collide`(0.3초 안에 2명+), `last`(1명 남음), `timeout`(20초 초과). 랭킹은 승리 횟수. 뱃지 카운터: n_plays, n_wins, n_collide, n_last, n_first, n_freeze.
-- `badges.js` — **뱃지(업적 50개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. 아래 뱃지 시스템 항목 참조.
+- `badges.js` — **뱃지(업적 61개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. 아래 뱃지 시스템 항목 참조.
 - `HANDOFF.md` — 이 문서.
 
 ## 뱃지 시스템 (badges.js)
@@ -112,6 +112,7 @@ t=하늘, b=파랑, v=보라, p=핑크, n=갈색, j=카키, i=회색, s=은색, 
 - [ ] `NG.GAMES[]`에 등록: `{id, type, page, icon, bg, anchor, min, max, anyLang, name{ko,ja}, desc{ko,ja}, rank{field,asc,unit}, info{ko:[],ja:[]}}`
 - [ ] 필요한 아이콘을 `common.js ICONS`에 16×16 도트로 추가
 - [ ] `{id}.html` 작성 (멀티는 nunchi.html, 1인은 react.html을 템플릿으로)
+- [ ] 멀티 게임이면 **게임 중단 버튼** 필수: 상단바에 `<button class="btn-danger hidden" id="stopBtn"></button>` + `NG.bindStop(...)` + render()에서 `stopper.sync(state)`
 - [ ] `badges.js`에 탭 추가 + 뱃지 5개 정의 + 아트
 - [ ] `badges.js PLAYS` 배열에 `{id}_plays` 추가
 - [ ] 올라운더 뱃지 조건 카운터 수 증가
@@ -136,6 +137,11 @@ t=하늘, b=파랑, v=보라, p=핑크, n=갈색, j=카키, i=회색, s=은색, 
 - **잉규게임 내 질문 기록**: 내가 했던 질문과 답 결과(예/아니오 개수)를 리스트로 계속 볼 수 있게(까먹지 않게). PC는 화면 한쪽 패널, 모바일은 접었다 펴는 버튼. 다른 사람 질문 기록도 볼 수 있게 할지 결정 필요
 - ✅ 도트 스크롤바(common.css 맨 아래, 각진 보라 막대·어두운 트랙·화살표 없음, Firefox는 scrollbar-color) + 채팅 글자·말풍선 축소(12px, padding 3px 7px, 간격 6px) — 1116g
 - ✅ 번개 손(r200) 번개 색을 파랑(g)으로 변경 — 1116f
+- ✅ **멀티 게임 중단 기능(모든 멀티 게임 공통)** — 1116i. `common.js`의 `NG.bindStop(room, { btn, playing, stop(keep), onStopped })` + `NG.toast(text)`. 방장에게만 상단바 `#stopBtn`(btn-danger) 표시, 두 번 눌러 확인(3초 안). `stop(keep)`에서 보조 경로를 지우고 `{...fresh(), ...keep}`(keep = stopAt·lang·langSet)을 push → 모두 대기실로. 각 게임 render()에서 `stopper.sync(state)` 호출 → `state.stopAt`이 새로 오면(10초 이내) 모두에게 토스트 + 채팅 알림. phase가 'end'를 거치지 않으므로 랭킹·뱃지·칭호 기록 안 함. 적용: draw, who, ingyu(카테고리 유지), mafia(역할 설정 유지, 음성 중지), nunchi. **새 멀티 게임을 만들 때도 반드시 넣을 것.**
+- ✅ 같은 방 두 번째 판부터 진행 알림이 채팅에 안 뜨던 문제 수정(ingyu `lastEv`, mafia `lastAnn`: 번호가 다시 작아지면 0으로 되돌림) — 1116i
+- ✅ 뱃지 상세창: 그림 위에 작은 회색 글씨로 게임 아이콘+이름 표시(`detail()`의 `.bd-game`, TABS에서 찾음. 공통 뱃지는 '공통') — 1116j
+- ✅ 똥피하기 조작 표시: 화면 절반이 밝아지던 배경 제거 → 아래 양쪽 구석 44px 반투명 버튼(`.ctl div`, 표시만. 조작은 여전히 화면 왼쪽/오른쪽 절반 전체) — 1116j
+- ✅ 숫자 찾기 8초 뱃지 '인간 계산기 / 人間計算機'(`f_calc`, 8초 안에 클리어, 보라 계산기 그림) — 1116j. 뱃지 총 61개
 - 이심전심, 기억력 게임, 밸런스 게임
 - 랭킹에 "내 기록" 강조·프로필 페이지
 - Firebase 규칙 정식 설정 (테스트 모드 2026년 12월 중순 만료 대비)

@@ -51,6 +51,7 @@
   <h1><i data-ic="nunchi" data-size="16"></i><span data-t="gameName"></span></h1>
   <span class="code-chip" id="codeChip"></span>
   <span class="grow"></span>
+  <button class="btn-danger hidden" id="stopBtn"></button>
   <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
 </div>
 <div class="wrap" id="view"></div>
@@ -122,6 +123,9 @@
     const startAt = NG.now() + 3000;   // 3·2·1 카운트다운 뒤 시작 (모두 서버 시각 기준)
     room.pushState({ ...fresh(), gid, cands: room.active().map(p => p.id), startAt, endAt: startAt + LIMIT, phase: 'play' });
   }
+  // 게임 중단(방장): 대기실로 돌아가고 이 판은 랭킹·뱃지를 기록하지 않음
+  const stopper = NG.bindStop(room, { btn: $('stopBtn'), playing: () => state.phase === 'play',
+    stop: (keep) => { room.ref.child('press').remove().catch(() => {}); myPress = 0; room.pushState({ ...fresh(), ...keep }); } });
   function finish(st, losers, reason, gs) {
     room.pushState({ ...st, phase: 'end', losers, reason, col: reason === 'collide' ? losers : [], order: gs.filter(g => g.ids.length === 1).map(g => g.ids[0]) });
     const o = arr(st.cands);
@@ -165,6 +169,7 @@
   }
   function render(force) {
     const st = state, ph = st.phase;
+    stopper.sync(st);
     const key = [ph, st.gid, cdLeft(), !!myPress, pressedCount(), room.playerList().map(p => p.id).join(','), room.isHost, NG.ui].join('|');
     if (!force && key === lastKey) { tick(); return; }
     lastKey = key;

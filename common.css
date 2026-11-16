@@ -196,3 +196,6 @@ input::placeholder { color: #6d6392; }
 ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background: var(--purple); }
 ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* 화면 위쪽 알림 (NG.toast) — 게임 중단 알림 등 */
+.ng-toast { position: fixed; left: 50%; top: calc(var(--toph, 56px) + 26px); transform: translateX(-50%); z-index: 90; width: max-content; max-width: min(88vw, 420px); padding: 10px 14px; background: #5a1f33; color: #ffd9e2; font-size: 13px; font-weight: 700; text-align: center; line-height: 1.5; word-break: keep-all; pointer-events: none; --bc: var(--pink); --dc: var(--ink); --dp: 4px; }

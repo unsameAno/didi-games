@@ -97,6 +97,7 @@
     <button class="btn-yellow hidden" id="roleBtn" data-t="myRole"></button>
     <button class="btn-ghost" id="voiceBtn" title="voice"><i data-ic="sound" data-size="16"></i></button>
     <button class="btn-ghost" id="bgmBtn" title="bgm"><i data-ic="note" data-size="16"></i></button>
+    <button class="btn-danger hidden" id="stopBtn"></button>
     <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
   </div>
   <div class="col" id="pin"></div>
@@ -317,6 +318,10 @@
     const al2 = died ? al.filter(id => id !== died) : al, winner = winCheck(roles, al2);
     push({ ...st, phase: 'morning', day: nd, alive: al2, ann: announce(st, items), used, contact, seen, pub, info, seduced: '', winner, next: winner ? 'end' : 'day', timeLeft: sec(10) });
   }
+  // 게임 중단(방장): 대기실로 돌아가고 이 판은 랭킹·뱃지를 기록하지 않음 (역할 설정은 유지)
+  const stopper = NG.bindStop(room, { btn: $('stopBtn'), playing: () => state.phase !== 'lobby' && state.phase !== 'end',
+    stop: (keep) => { for (const p of ['nact', 'vote', 'mchat']) room.ref.child(p).remove().catch(() => {}); goneCnt = {}; push({ ...fresh(), ...keep, cfg: { ...cfg() } }); },
+    onStopped: () => { try { speechSynthesis.cancel(); } catch {} showRole = false; } });
   function endGame(st) {
     push({ ...st, phase: 'end', timeLeft: 0 });
     const o = arr(st.order), roles = st.roles || {};
@@ -394,6 +399,7 @@
 
   function render() {
     const st = state, ph = st.phase, c = cfg(), list = room.playerList(), host = room.isHost, n = room.active().length, mine = myRole(), aliveMe = isAlive(me()), playing = inGame();
+    stopper.sync(st);
     const acting = canAct(), mafView = ph === 'night' && aliveMe && mafKnown(me()) && (curStep() === 'mafia' || curStep() === 'all');
     const eyes = ph === 'night' && playing && aliveMe && !acting && !mafView;
     document.body.classList.toggle('night', ph === 'night'); document.body.classList.toggle('eyes', eyes);
@@ -508,7 +514,7 @@
     else if ((it.type === 'kill' || it.type === 'lover') && mineHit && state.day === 2) NG.Badge.run({ m_night1: 1 });
     else if (it.type === 'saved' && r === 'doctor' && isAlive(me()) && !((state.info || {})[me()] && state.info[me()].type === 'blocked')) NG.Badge.run({ m_doc: 1 });
   }
-  room.on('state', (s) => { const prev = state; state = { ...fresh(), ...(s || {}) }; if (firstState) { firstState = false; lastAnn = (state.ann && state.ann.n) || 0; lastCue = [state.gid, state.day, state.phase, state.step].join('|'); Snd.setMood(moodOf()); } else { logAnn(); cue(prev); if (state.phase === 'end' && prev.phase !== 'end') { NG.addMsg('win', '', winText()); if (NG.Badge && inGame()) NG.Badge.run({ m_plays: 1, m_wins: iWon(), m_mafwin: iWon() && MAF_TEAM.includes(myRole()), m_jokerwin: state.winner === 'joker' && state.wuid === me(), m_flawless: iWon() && isAlive(me()) }); } } render(); });
+  room.on('state', (s) => { const prev = state; state = { ...fresh(), ...(s || {}) }; if (firstState) { firstState = false; lastAnn = (state.ann && state.ann.n) || 0; lastCue = [state.gid, state.day, state.phase, state.step].join('|'); Snd.setMood(moodOf()); } else { if (((state.ann && state.ann.n) || 0) < lastAnn) lastAnn = 0; logAnn(); cue(prev); if (state.phase === 'end' && prev.phase !== 'end') { NG.addMsg('win', '', winText()); if (NG.Badge && inGame()) NG.Badge.run({ m_plays: 1, m_wins: iWon(), m_mafwin: iWon() && MAF_TEAM.includes(myRole()), m_jokerwin: state.winner === 'joker' && state.wuid === me(), m_flawless: iWon() && isAlive(me()) }); } } render(); });
   room.on('players', (list, info) => { for (const x of (info && info.notes) || []) NG.addMsg('sys', '', x); render(); });
   room.on('chat', (m) => NG.addMsg('', m.name, m.text));
 

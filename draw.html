@@ -311,7 +311,7 @@
     }
     const inLobby = state.phase === 'lobby' || state.phase === 'end';
     $('startBtn').classList.toggle('hidden', !(room.isHost && inLobby && act.length >= 2)); $('startBtn').textContent = state.phase === 'end' ? t('again') : t('start');
-    $('stopBtn').classList.toggle('hidden', !(room.isHost && !inLobby)); if (!stopArmed) $('stopBtn').textContent = t('stop');
+    stopper.sync(state);
     $('timeSet').classList.toggle('hidden', !inLobby); $('timeSel').disabled = !room.isHost; if (state.drawSec) $('timeSel').value = String(state.drawSec);
     const ph = amDrawer() ? t('phNoHint') : (state.phase === 'draw' ? t('phAnswer') : t('phChat'));
     $('chatInput').placeholder = $('quickInput').placeholder = ph; $('chatInput').disabled = $('quickInput').disabled = !amPlayer && state.phase === 'draw';
@@ -364,13 +364,10 @@
     else if (state.phase === 'reveal') { state.timeLeft--; if (state.timeLeft <= 0) beginRound(state.round + 1); }
   });
   function hostOnChat(m) { if (!room.isHost || state.phase !== 'draw' || m.by === state.drawer || !(state.order || []).includes(m.by)) return; if (m.round === state.round && isAnswer(m.text)) endRound(m.by); }
-  let stopArmed = false, stopT = null;
   $('startBtn').addEventListener('click', () => { if (room.isHost) startGame(); });
-  $('stopBtn').addEventListener('click', () => {
-    if (!room.isHost) return;
-    if (!stopArmed) { stopArmed = true; $('stopBtn').textContent = t('stopConfirm'); clearTimeout(stopT); stopT = setTimeout(() => { stopArmed = false; render(); }, 3000); return; }
-    stopArmed = false; clearTimeout(stopT); state = { ...fresh(), lang: state.lang, langSet: true, drawSec: state.drawSec }; room.ref.child('strokes').remove().catch(() => {}); room.ref.child('pick').remove().catch(() => {}); room.pushState(state); NG.addMsg('sys', '', t('stopped'));
-  });
+  // 게임 중단(방장): 대기실로 돌아가고 이 판은 기록하지 않음
+  const stopper = NG.bindStop(room, { btn: $('stopBtn'), playing: () => state.phase !== 'lobby' && state.phase !== 'end',
+    stop: (keep) => { state = { ...fresh(), ...keep, langSet: true, drawSec: state.drawSec }; room.ref.child('strokes').remove().catch(() => {}); room.ref.child('pick').remove().catch(() => {}); room.pushState(state); } });
   $('timeSel').addEventListener('change', () => { if (!room.isHost) return; drawSeconds = +$('timeSel').value; state.drawSec = drawSeconds; room.pushState(state); });
   $('leaveBtn').addEventListener('click', async () => { await room.leave(); location.href = 'index.html'; });
 

@@ -492,6 +492,37 @@
     while (log.children.length > 200) log.removeChild(log.firstChild);
     const q = document.getElementById('qlog'); if (q) { q.appendChild(d.cloneNode(true)); while (q.children.length > 2) q.removeChild(q.firstChild); }
   };
+  // 화면 위쪽에 잠깐 뜨는 알림 (채팅창이 없는 게임에서도 보이게)
+  NG.toast = (text, ms) => {
+    let d = document.getElementById('ngToast'); if (d) d.remove();
+    d = NG.el('div', 'ng-toast pxb', text); d.id = 'ngToast'; document.body.appendChild(d);
+    setTimeout(() => { if (d.parentNode) d.remove(); }, ms || 3500);
+  };
+  // 멀티 게임 공통: 방장의 '게임 중단' 버튼 (두 번 눌러 확인) + 모두에게 중단 알림. 새 멀티 게임도 반드시 이걸 쓴다.
+  //   const stopper = NG.bindStop(room, { btn, playing: () => 게임 중인지, stop: (keep) => 대기실 상태를 pushState, onStopped? });
+  //   render()/state 수신 때마다 stopper.sync(state) 호출.
+  //   stop(keep): keep = { stopAt, lang?, langSet? } 를 대기실 상태에 섞어서 push. phase를 'lobby'로 돌리므로 랭킹·뱃지는 기록되지 않는다.
+  NG.bindStop = (room, { btn, playing, stop, onStopped }) => {
+    let armed = false, timer = null, seen = 0;
+    const paint = () => {
+      const show = !!room.isHost && !!playing();
+      if (!show && armed) { armed = false; clearTimeout(timer); }
+      btn.classList.toggle('hidden', !show); btn.textContent = NG.t(armed ? 'stopConfirm' : 'stop');
+    };
+    btn.addEventListener('click', () => {
+      if (!room.isHost || !playing()) return;
+      if (!armed) { armed = true; clearTimeout(timer); timer = setTimeout(() => { armed = false; paint(); }, 3000); paint(); return; }
+      armed = false; clearTimeout(timer);
+      const s = room.state || {}, keep = { stopAt: NG.now() };
+      if (s.lang) keep.lang = s.lang; if (s.langSet) keep.langSet = true;
+      stop(keep); paint();
+    });
+    return { sync(state) {
+      const at = (state && state.stopAt) || 0;
+      if (at && at !== seen) { seen = at; if (Math.abs(NG.now() - at) < 10000) { NG.toast(NG.t('stopped').replace(/─/g, '').trim()); NG.addMsg('sys', '', NG.t('stopped')); if (onStopped) onStopped(); } }
+      paint();
+    } };
+  };
   // 모바일: 무대(stage) 크기 조정.
   // 크기는 '상태가 바뀔 때만' 다시 계산한다 → 키보드 열림/닫힘, 화면 폭(회전) 변경, (게임 중이 아닐 때) 상단바 높이 변화.
   // 주소창이 숨었다 나타나는 것·스크롤·매초 갱신으로는 크기가 바뀌지 않음.
