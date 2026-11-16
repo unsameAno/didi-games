@@ -156,6 +156,12 @@ input::placeholder { color: #6d6392; }
 .qlog .msg { font-size: 12px; padding: 3px 8px; }
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
 
+/* PC: 오른쪽 칸(참가자+채팅)은 화면 높이를 넘지 않게 → 채팅만 안에서 스크롤 */
+@media (min-width: 761px) {
+  .side { align-self: start; position: sticky; top: 72px; max-height: calc(100dvh - 90px); }
+  .side .chat { min-height: 160px; }
+  .side .log { min-height: 0; }
+}
 @media (max-width: 760px) {
   .main { grid-template-columns: 1fr; grid-template-rows: auto auto; max-width: none; padding-top: 14px; }
   body { height: auto; }
@@ -169,6 +175,7 @@ input::placeholder { color: #6d6392; }
   .quick { display: flex; }
   .side .card:not(.chat) { order: 1; padding: 10px 12px; } .side .chat { order: 2; }
   .side .chat form { display: none; }
+  .side .chat { min-height: 0; } .side .log { flex: none; max-height: 45dvh; }   /* 모바일: 채팅 기록은 화면 절반 이하, 넘치면 안에서 스크롤 */
   .players { flex-direction: row; flex-wrap: wrap; gap: 10px 9px; }
   .pl { padding: 3px 8px 3px 3px; font-size: 12px; gap: 6px; }
   .pl .nm { flex: 0 1 auto; max-width: 90px; }
