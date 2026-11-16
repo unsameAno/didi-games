@@ -11,7 +11,7 @@
 - 폰트: 도트 폰트 Galmuri(갈무리, 한글·일본어 지원)를 CDN으로 불러옴(`common.css` 맨 위 @import, jsdelivr `galmuri@latest`). 못 불러오면 Noto Sans KR로 대체.
 
 ## 파일 구조 (/home/claude/platform 에서 작업, zip: didi-games-site.zip)
-- `index.html` — 언어 선택(**처음 한 번만**, localStorage `dm-ui` 있으면 건너뜀) → 닉네임+캐릭터 → 로비. 게임 카드를 누르면 **소개 팝업**(아이콘·소개·인원·시간·언어 표시·규칙 3줄, `NG.GAMES[].info`) → '방 만들기'/'시작하기'. 열린 방·코드·접속자 클릭은 팝업 없이 바로 입장. 로비: 로고(누르면 홈=게임 탭), 탭(게임 / 열린 방 / 랭킹 — 모바일에선 화면 아래 고정 탭바), 게임 탭은 **멀티 게임 / 1인 게임** 두 구역, 방 참여(코드로 멀티 게임 방 찾아 입장), 접속 중 패널(모바일에선 접힘, 안에 '내 접속 숨기기' 스위치). `index.html?tab=rank&g=react`로 열면 해당 게임 랭킹 탭.
+- `index.html` — 언어 선택(**처음 한 번만**, localStorage `dm-ui` 있으면 건너뜀) → 닉네임+캐릭터 → 로비. 게임 카드를 누르면 **소개 팝업**(아이콘·소개·인원·시간·언어 표시·규칙 3줄, `NG.GAMES[].info`) → '방 만들기'/'시작하기'. 열린 방·코드·접속자 클릭은 팝업 없이 바로 입장. 로비: 로고(누르면 홈=게임 탭), '보유 뱃지' 버튼(PC: 언어 버튼 왼쪽 / 폰: 닉네임 줄 오른쪽 끝), 랭킹 탭 맨 위에 내 기록 고정, 탭(게임 / 열린 방 / 랭킹 — 모바일에선 화면 아래 고정 탭바), 게임 탭은 **멀티 게임 / 1인 게임** 두 구역, 방 참여(코드로 멀티 게임 방 찾아 입장), 접속 중 패널(모바일에선 접힘, 안에 '내 접속 숨기기' 스위치). `index.html?tab=rank&g=react`로 열면 해당 게임 랭킹 탭.
 - `common.js` — Firebase 초기화, `NG` 네임스페이스: 다국어(`NG.T`, `NG.t`, `NG.addT`, `applyText`가 `[data-ic]` 아이콘도 채움), 사용자(`NG.me`, `NG.login`, uid=정규화 닉네임), **픽셀 아트**: 아바타 16×16 8종(`NG.AV`, `NG.avatarSVG`), 게임 썸네일은 16×16 그림(palette, who, search, mafia, bolt, target) + 게임별 배경색(`NG.GAMES[].bg`) — 크기는 16의 배수(16/32/48/64)로 써야 또렷함. UI 아이콘(`NG.icon(name,size)` — pad, palette, bolt, door, trophy, globe, key, chat, people, crown, home, play, star, back), 로고(`NG.logoHTML(small)`, `NG.bindLogo(root, onLeave)`), `NG.Room` 클래스(입장/퇴장, 방장=가장 먼저 들어온 사람, 상태 동기화, 채팅, 로비 색인), 랭킹(`recordResult`, `recordBest`, `recordSolo`(낮을수록 좋음), `recordTop`(높을수록 좋음), `leaderboard`, `myStats`), 접속 상태(`setPresence`, `watchPresence`, `setHidePresence` — '내 접속 숨기기', localStorage `dm-hide`, 켜면 presence에 쓰지 않음), 모바일 레이아웃(`mobileLayout`: 100svh 기준, 키보드 열림/닫힘·화면 폭 변경·게임 단계 변경 때만 그림판 크기 재계산. `NG.layoutLock`=그리는 중 완전 고정, `NG.layoutHold`=게임 진행 중 유지).
 - `common.css` — 도트 테마. 픽셀 테두리는 box-shadow 4방향(계단형 모서리) + 아래 깊이 그림자; 요소마다 `--bc`(테두리색) `--dc`(깊이색) `--dp`(깊이)만 바꿈. 클래스 `.pxb`를 붙이면 아무 요소나 픽셀 테두리. 버튼은 누르면 3px 내려감. 게임 공통 레이아웃(.top/.main/.board/.stage/.side/.quick), 모바일 규칙.
 - `draw.html` — Draw Mind(캐치마인드류, 멀티). 제시어 4개 중 선택(쉬움1·보통2·어려움1, 15초), 그리기 1/2/3분, 힌트는 빈 박스→시간 절반 후 초성(일본어는 첫 글자), 점수 10/15/25 + 속도 보너스(그린 사람 절반), 인원×2 라운드. 제시어는 언어별 520개(쉬움 190·보통 200·어려움 130, 분류 20개; 추가분은 `MORE` 블록의 문자열 목록). 같은 방에서 후보로 한 번 나온 제시어는 다시 안 나옴(`rooms/draw/{code}/used`, 방이 비면 초기화, 한 난이도를 다 쓰면 그 난이도만 다시). 일본어 제시어는 [표기, 읽기, 별칭…]. 상단 로고 누르면 방에서 나가 로비로. 모바일: 그리는 사람은 그림판에서 스크롤·확대가 막히고(터치 이벤트 preventDefault), 힌트 칸은 상단바에서 항상 한 줄을 차지해 높이가 안 바뀜. 그리는 사람에게는 정답 입력칸을 숨기고(최근 채팅 2줄만) 그림판을 크게, 게임 중엔 상단바의 언어 배지·연결 상태 숨김.
@@ -28,9 +28,16 @@
   - 승리: 마피아 0명→시민 / 마피아 편 ≥ 나머지→마피아. 기록은 `NG.recordTeam`(이긴 편 전원 승리).
   - 소리(Snd): 음성 안내=브라우저 speechSynthesis, 배경음·효과음=Web Audio 합성(파일 없음; day 밝게 / vote 긴장 / night 스산). 기본은 방장 폰만 켜짐(localStorage `mf-voice`/`mf-bgm`가 없으면 isHost), 상단 버튼으로 각각 켜고 끔, 대기실에 소리 테스트.
   - 경로: `nact/{gid_day}/{uid}`={t,at}, `vote/{gid_day}/{uid}`, `mchat`. state에 roles·seen·info·pub·contact·used. **역할은 화면에서만 가림(DB에는 있음).** 개발용: 주소에 `?fast`를 붙이면 모든 시간이 1/10.
+- `badges.js` — **뱃지(업적 45개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. `NG.Badge`: `run({카운터: 숫자|true})`(게임에서 호출 → 카운터 증가 → 조건 판정 → '새 뱃지 획득!' 알림), `addTitle(qi, ko, ja)`, `open()`(보유 뱃지 화면: 대표 뱃지 3칸, 탭 전체/게임별/공통, 얻은 것은 색·못 얻은 것은 실루엣+진행도, 누르면 상세·대표 설정), `mini(uid, name, av)`(친구의 캐릭터+대표 뱃지 3개 — 로비 접속 중 목록에서 사람을 누르면), `art(id, size, locked)`.
+  - 뱃지 정의는 파일 안 `LIST`(한 줄에 하나: id, 탭, 카운터 키 또는 계산 함수, 필요 값, 숨김, 이름 ko/ja, 조건 ko/ja). 그림은 `D.art[id]`(16×16, 없으면 로고). 그림 원본·미리보기 스크립트는 작업 공간 `/home/claude/art/badges_art.py`(세션이 바뀌면 없음 → badges.js 안의 art가 원본).
+  - 숨김 뱃지(조건 ???): r_slow, r_guess, a_one, i_pass5, g_dawn. 단계는 메달 색이 아니라 이름·그림이 다른 별개 뱃지(예: 에임 55 명사수 / 70 인간 터렛 / 80 에임핵 의심).
+  - 카운터가 오르는 곳: react.html·aim.html의 finish, draw.html의 state 핸들러(정답·5초 컷·피카소·종료)와 chat(아깝다), ingyu.html의 showEv(정답/오답/넘기기)와 종료, who.html의 badgeEnd(칭호 기록), mafia.html의 badgeAnn(처형·첫날 밤·의사 구출)·logAnn(경찰 적발)·종료.
+  - 처음 한 번 `seed()`가 기존 stats(판수·승리·반응속도 평균·에임 개수)를 카운터로 옮김. 세부 조건 뱃지는 기능을 넣은 뒤부터 쌓임.
+  - 저장: `badges/{uid}/c|got|rep|titles`. 새 뱃지 수는 localStorage `dm-bnew`(보유 뱃지 버튼의 NEW). **닉네임에 묶이고 조작은 막을 수 없음(재미용).**
 - `HANDOFF.md` — 이 문서.
 
 ## Firebase 데이터 구조
+- `badges/{uid}` 뱃지 카운터·획득·대표·칭호
 - `users/{uid}` 프로필 · `presence/{uid}` 접속 상태(status: 'lobby'|게임id, code — 1인 게임은 code 없음)
 - `rooms/{game}/{code}/players|state|chat|strokes|pick|results` (멀티 게임만)
 - `lobby/{code}` 열린 방 색인(방장이 갱신, 끊기면 자동 삭제)
@@ -53,7 +60,7 @@
 - 플랫폼 이름 DIDI Games, 그림 게임 이름 Draw Mind, 반응속도 게임 이름 반응속도 테스트(反射神経テスト).
 
 ## 작업 규칙 (Claude가 지킬 것)
-- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html ingyu.html mafia.html react.html aim.html common.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
+- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html ingyu.html mafia.html react.html aim.html common.js badges.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
 - 화면 확인: 작업 공간의 google-chrome + playwright로 390×844(폰)·1280×800(PC) 스크린샷. Firebase·폰트 CDN은 막혀 있으니 오프라인 상태 화면으로 확인(실제 동작은 사용자 테스트).
 - 새 게임 추가 시: `NG.GAMES`에 등록(id, type, page, icon(픽셀 아이콘 이름), name/desc ko·ja, min/max, rank{field, asc, unit}) + `{id}.html` 작성(멀티는 draw.html, 1인은 react.html을 템플릿으로) + 다국어 `NG.addT`. 필요한 아이콘은 common.js `ICONS`에 문자열 도트로 추가.
 - 모든 문구는 ko/ja 둘 다. 방 안에서 언어가 섞이지 않게.
@@ -69,6 +76,7 @@
 - Draw Mind 화면 도트 디테일 다듬기(그림판 도구 아이콘화, 메시지 이모지 → 픽셀 아이콘)
 
 ## 아직 검증 안 된 것
+- 뱃지: 가짜 DB로 기존 기록 옮기기, 보유 뱃지 화면(폰·PC·일본어), 대표 뱃지 설정, 친구 프로필, 에임에서 '딱 한 개만' 획득 알림 확인. 미확인: 게임별 세부 카운터 대부분(Draw Mind·마피아·잉규게임의 실제 상황), 실제 Firebase.
 - 마피아: 가짜 DB로 6명 기본 판(동시에)과 13명 전 역할 판(순서대로) 자동 테스트 통과 — 정치인 처형 불가, 마담 유혹으로 경찰 무효, 군인 버팀, 스파이 접선, 동점, 연인 대신 탈락, 기자 공개, 조커 승리, 시민 승리 확인. **미확인: 소리(음성·배경음은 들어 볼 수 없었음), 실제 여러 기기, 마피아 채팅 표시, 방장 교체, 중간 퇴장, 일본어 화면.**
 - 잉규게임: 가짜 DB로 4명 한 판 자동 테스트 통과(오답·정답·넘기기·순위·기록). 실제 여러 기기, 채팅 표시, 중간 퇴장 처리는 미확인.
 - 에임 테스트: 가짜 DB로 자동 플레이 통과(빗나감 4번 → 2초 감소, 기록 저장 확인). 실기기 터치 체감·랭킹 표시는 미확인.

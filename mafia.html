@@ -114,6 +114,7 @@
 <canvas id="confetti"></canvas>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   if (!NG.requireLogin()) return;
@@ -498,8 +499,16 @@
     else if (ph === 'result') { const items = arr((st.ann || {}).items); Snd.speak(items.map(it => annText(it)[1]).join(' ')); if (items.some(it => it.type === 'exec')) Snd.sfx('bad'); }
     else if (ph === 'end') { Snd.speak(winText()); Snd.sfx(st.winner === 'joker' ? 'joker' : inGame() && iWon() ? 'win' : 'lose'); if (inGame() && iWon()) NG.confetti(); }
   }
-  function logAnn() { const a = state.ann || {}; if (!a.n || a.n <= lastAnn) return; lastAnn = a.n; for (const it of arr(a.items)) { const [cls, tx] = annText(it); if (tx) NG.addMsg(cls === 'bad' ? 'close' : cls === 'good' ? 'win' : 'sys', '', tx); } }
-  room.on('state', (s) => { const prev = state; state = { ...fresh(), ...(s || {}) }; if (firstState) { firstState = false; lastAnn = (state.ann && state.ann.n) || 0; lastCue = [state.gid, state.day, state.phase, state.step].join('|'); Snd.setMood(moodOf()); } else { logAnn(); cue(prev); if (state.phase === 'end' && prev.phase !== 'end') NG.addMsg('win', '', winText()); } render(); });
+  function logAnn() { const a = state.ann || {}; if (!a.n || a.n <= lastAnn) return; lastAnn = a.n; for (const it of arr(a.items)) { const [cls, tx] = annText(it); if (tx) NG.addMsg(cls === 'bad' ? 'close' : cls === 'good' ? 'win' : 'sys', '', tx); badgeAnn(it); }
+    const inf = (state.info || {})[me()]; if (NG.Badge && state.phase === 'morning' && inf && inf.type === 'police' && inf.res && inf.d === state.day) NG.Badge.run({ m_police: 1 }); }
+  // 뱃지용 기록: 발표 내용 중 나에게 해당하는 것
+  function badgeAnn(it) {
+    if (!NG.Badge || !inGame()) return; const r = myRole(), mineHit = it.uid === me();
+    if (it.type === 'exec' && mineHit) NG.Badge.run({ m_exec1: state.day === 1, m_cit_exec: !MAF_TEAM.includes(r) && r !== 'joker' });
+    else if ((it.type === 'kill' || it.type === 'lover') && mineHit && state.day === 2) NG.Badge.run({ m_night1: 1 });
+    else if (it.type === 'saved' && r === 'doctor' && isAlive(me()) && !((state.info || {})[me()] && state.info[me()].type === 'blocked')) NG.Badge.run({ m_doc: 1 });
+  }
+  room.on('state', (s) => { const prev = state; state = { ...fresh(), ...(s || {}) }; if (firstState) { firstState = false; lastAnn = (state.ann && state.ann.n) || 0; lastCue = [state.gid, state.day, state.phase, state.step].join('|'); Snd.setMood(moodOf()); } else { logAnn(); cue(prev); if (state.phase === 'end' && prev.phase !== 'end') { NG.addMsg('win', '', winText()); if (NG.Badge && inGame()) NG.Badge.run({ m_plays: 1, m_wins: iWon(), m_mafwin: iWon() && MAF_TEAM.includes(myRole()), m_jokerwin: state.winner === 'joker' && state.wuid === me(), m_flawless: iWon() && isAlive(me()) }); } } render(); });
   room.on('players', (list, info) => { for (const x of (info && info.notes) || []) NG.addMsg('sys', '', x); render(); });
   room.on('chat', (m) => NG.addMsg('', m.name, m.text));
 

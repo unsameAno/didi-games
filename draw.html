@@ -94,6 +94,7 @@
 </div>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   if (!NG.requireLogin()) return;
@@ -201,7 +202,7 @@
   const code = NG.codeFromHash() || NG.genCode();
   try { history.replaceState(null, '', '#' + code.toLowerCase()); } catch {}
   const room = new NG.Room(GAME, code);
-  let drawSeconds = 120;
+  let drawSeconds = 120, bPrev = '', bDrawAt = 0;
   const fresh = () => ({ phase: 'lobby', round: 0, totalRounds: 0, drawer: null, word: '', reading: '', accept: [], category: '', level: 1, timeLeft: 0, scores: {}, winner: null, order: [], drawSec: drawSeconds, candidates: [] });
   let state = fresh(), lastSeenRound = -1;
   const amDrawer = () => (state.phase === 'draw' || state.phase === 'pick') && state.drawer === NG.me.uid;
@@ -383,13 +384,20 @@
       .on('state', (s) => {
         state = { ...fresh(), ...(s || {}), scores: (s && s.scores) || {}, order: (s && s.order) || [], accept: (s && s.accept) || [], candidates: (s && s.candidates) || [] };
         if (state.drawSec) drawSeconds = state.drawSec;
+        if (NG.Badge) {   // 뱃지용 기록
+          const meId = NG.me.uid, ph = state.phase;
+          if (ph === 'draw' && bPrev !== 'draw') bDrawAt = Date.now();
+          if (ph === 'reveal' && bPrev === 'draw') { if (state.winner === meId) NG.Badge.run({ d_correct: 1, d_fast: Date.now() - bDrawAt <= 5500 }); else if (state.drawer === meId && !state.winner) NG.Badge.run({ d_picasso: 1 }); }
+          if (ph === 'end' && bPrev !== 'end' && bPrev !== '' && state.order.includes(meId)) { const top = state.order.map(id => [id, state.scores[id] || 0]).sort((a, b) => b[1] - a[1])[0]; NG.Badge.run({ d_plays: 1, d_wins: !!top && top[0] === meId && top[1] > 0 }); }
+          bPrev = ph;
+        }
         if (state.round !== lastSeenRound || state.phase === 'lobby') { if (state.phase === 'pick' && state.round !== lastSeenRound) NG.addMsg('sys', '', t('turn', state.round + 1, room.nameOf(state.drawer))); lastSeenRound = state.round; }
         if (state.phase === 'reveal' && state.winner && !render._c) { render._c = true; NG.confetti(); } if (state.phase !== 'reveal') render._c = false;
         render(); })
       .on('chat', (m) => {
         const text = String(m.text || '').slice(0, 40); const nm = room.nameOf(m.by) === '?' ? m.name : room.nameOf(m.by);
         if (state.phase === 'draw' && m.by !== state.drawer && isAnswer(text)) NG.addMsg('win', '', t('correctBy', nm));
-        else if (state.phase === 'draw' && isClose(text)) NG.addMsg('close', nm, ' ' + text + '  ' + t('close'));
+        else if (state.phase === 'draw' && isClose(text)) { NG.addMsg('close', nm, ' ' + text + '  ' + t('close')); if (NG.Badge && m.by === NG.me.uid && (typeof m.t !== 'number' || Math.abs(NG.now() - m.t) < 8000)) NG.Badge.run({ d_close: 1 }); }
         else NG.addMsg('', nm, ' ' + text);
         hostOnChat(m);
       });

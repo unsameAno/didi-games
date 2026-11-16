@@ -65,6 +65,7 @@
 <canvas id="confetti"></canvas>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   if (!NG.requireLogin()) return;
@@ -400,7 +401,15 @@
     }
   }
 
-  room.on('state', (s) => { const prev = rkey(); state = { ...fresh(), ...(s || {}) }; if (rkey() !== prev) sel = null; render(); });
+  // 게임이 끝나면 내가 받은 칭호를 뱃지로 기록 (한 판에 한 번)
+  let badgeGid = 0;
+  function badgeEnd() {
+    if (!NG.Badge || badgeGid === state.gid || !state.gid) return; badgeGid = state.gid;
+    const mine = String((state.wins || {})[me()] || '').split(',').filter(Boolean).map(x => +x.split(':')[0]);
+    for (const qi of mine) if (QS[qi]) NG.Badge.addTitle(qi, QS[qi][0], QS[qi][1]);
+    NG.Badge.run({ w_plays: 1, w_star: mine.length >= 5, w_none: mine.length === 0 });
+  }
+  room.on('state', (s) => { const prev = rkey(), pp = state.phase; state = { ...fresh(), ...(s || {}) }; if (rkey() !== prev) sel = null; if (state.phase === 'end' && (pp === 'reveal' || pp === 'ask')) badgeEnd(); render(); });
   room.on('players', () => render());
 
   room.join(fresh()).then(r => {

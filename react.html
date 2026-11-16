@@ -83,6 +83,7 @@
 </div>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   if (!NG.requireLogin()) return;
@@ -119,7 +120,7 @@
   NG.myStats(GAME).then(s => { if (s && s.avg != null) { myAvg = s.avg; setBest(); if (phase === 'intro') render(); } });
 
   // phase: intro → wait → go → shot (… ROUNDS번) → result.  early: 반칙 후 같은 라운드 다시
-  let phase = 'intro', times = [], fouls = 0, goTimer = null, goT = 0, lastMs = 0, foulKind = 'early', result = null;
+  let guessN = 0, phase = 'intro', times = [], fouls = 0, goTimer = null, goT = 0, lastMs = 0, foulKind = 'early', result = null;
   const pad = $('pad');
 
   function roundsHTML() {
@@ -169,6 +170,7 @@
     const sum = times.reduce((a, b) => a + b, 0);
     result = { avg: Math.round(sum / times.length), best: Math.min(...times), worst: Math.max(...times) };
     phase = 'result'; render();
+    if (NG.Badge) NG.Badge.run({ r_plays: 1, r165: result.avg <= 165, r200: result.avg <= 200, r250: result.avg <= 250, r400: result.avg >= 400, r_slow: times.some(x => x >= 1000), r_foul5: fouls >= 5, r_guess: guessN }); guessN = 0;
     const prevAvg = myAvg;
     NG.recordSolo(GAME, { avg: result.avg, best: result.best }).then(async (res) => {
       const line = $('recLine'); if (!line) return;
@@ -184,7 +186,7 @@
     if (phase === 'go') {
       const now = (ts && ts > 0 && Math.abs(ts - performance.now()) < 1000) ? ts : performance.now();
       const ms = Math.round(now - goT);
-      if (ms < MIN_HUMAN) { fouls++; foulKind = 'guess'; phase = 'early'; render(); return; }
+      if (ms < MIN_HUMAN) { fouls++; guessN++; foulKind = 'guess'; phase = 'early'; render(); return; }
       lastMs = ms; times.push(ms); phase = 'shot'; render(); return;
     }
     if (phase === 'early') { startRound(); return; }

@@ -78,6 +78,7 @@
 <canvas id="confetti"></canvas>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   if (!NG.requireLogin()) return;
@@ -158,6 +159,7 @@
   function finish() {
     phase = 'result'; cancelAnimationFrame(raf); $('timeBox').classList.remove('low', 'hit');
     const total = hits + misses, acc = total ? Math.round(hits / total * 100) : 0, prevBest = myBest;
+    if (NG.Badge) NG.Badge.run({ a_plays: 1, a55: hits >= 55, a70: hits >= 70, a80: hits >= 80, a_perfect: acc === 100 && hits >= 30, a_acc50: total >= 10 && acc <= 50, a_miss30: misses >= 30, a_lost: misses >= 20, a_one: hits === 1 });
     arena.className = 'arena pxb';
     arena.innerHTML = `<div class="ov res"><div class="lbl">${t('hitsLbl')}</div><div class="num">${hits}<small>${t('unit')}</small></div><div class="bestline"><b>${t('grade', hits)}</b></div>
       <div id="recLine" style="min-height:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center"></div>

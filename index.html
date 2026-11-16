@@ -14,7 +14,11 @@
   .lhead { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; padding: 10px 14px; background: var(--panel); margin-bottom: 22px; }
   .meChip { display: inline-flex; align-items: center; gap: 8px; background: var(--panel2); --bc: var(--panel2); padding: 3px 10px 3px 3px; font-weight: 700; cursor: pointer; font-size: 14px; min-height: 0; margin: 0; --dp: 0px; --in: 0 0 0 0 transparent; }
   .meChip .edit { color: var(--muted); font-size: 11px; }
-  .top-actions { display: flex; gap: 12px; margin-left: auto; align-items: center; }
+  .top-actions { display: flex; gap: 12px; align-items: center; }
+  #badgeBtn { margin: 0 0 3px auto; padding: 5px 10px; font-size: 13px; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; }
+  #badgeBtn .bn { background: var(--yellow); color: #1a1426; font-size: 11px; padding: 1px 6px; } #badgeBtn .new { background: var(--pink); color: #fff; font-size: 9px; padding: 1px 5px; animation: pulse .6s steps(2) infinite; }
+  .rrow.pin { --bc: var(--yellow); margin-bottom: 10px; } .rrow .mytag { font-size: 10px; background: var(--yellow); color: #1a1426; padding: 1px 5px; margin-right: 6px; }
+  .ou.prof { cursor: pointer; }
   .top-actions button { padding: 8px 12px; font-size: 14px; min-height: 40px; display: inline-flex; align-items: center; }
 
   .ltabs { display: flex; gap: 10px; background: var(--panel); padding: 8px; margin-bottom: 22px; --dc: var(--ink); --dp: 6px; }
@@ -115,6 +119,8 @@
     .lhead { margin: 0 -12px 18px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); position: sticky; top: 0; z-index: 10; --dp: 6px; gap: 8px; }
     .lhead .logo .logo-t { font-size: 17px; }
     .lhead .meChip { order: 3; }
+    .top-actions { margin-left: auto; }
+    #badgeBtn { order: 4; }
     .top-actions { gap: 10px; }
     .top-actions .lbl { display: none; }
     .ltabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); gap: 8px; --bc: var(--ink); --dp: 0px; }
@@ -168,6 +174,7 @@
   <div class="lhead card">
     <span id="logoSlot"></span>
     <button class="meChip" id="meChip"></button>
+    <button class="btn-ghost" id="badgeBtn"></button>
     <div class="top-actions">
       <button class="btn-ghost" id="langBtn"><i data-ic="globe" data-size="18"></i><span class="lbl" id="langNow"></span></button>
       <button class="btn-yellow" id="joinBtn"><i data-ic="key" data-size="18"></i><span data-t="joinRoom"></span></button>
@@ -235,14 +242,15 @@
 </div>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   NG.addT({
     ko: { tabGames: '게임', tabRooms: '열린 방', tabRank: '랭킹', appDesc: '친구들과 폰으로 즐기는 미니게임 모음!<br>닉네임과 캐릭터를 정하고 들어오세요.', notFound: '그 코드의 방을 찾을 수 없어요. 코드를 확인해 주세요.',
-      newRoom: '새 방 만들기', playNow: '바로 시작', makeRoom: '방 만들기', startNow: '시작하기', langAny: '언어 달라도 가능', langSame: '같은 언어끼리만', secMulti: '멀티 게임', secMultiSub: '방을 만들고 친구와 함께', secSolo: '1인 게임', secSoloSub: '혼자서 기록 도전',
+      myRec: '내 기록', newRoom: '새 방 만들기', playNow: '바로 시작', makeRoom: '방 만들기', startNow: '시작하기', langAny: '언어 달라도 가능', langSame: '같은 언어끼리만', secMulti: '멀티 게임', secMultiSub: '방을 만들고 친구와 함께', secSolo: '1인 게임', secSoloSub: '혼자서 기록 도전',
       hideMe: '내 접속 숨기기', hiddenNote: '지금은 접속 중 목록에 내가 보이지 않아요. 게임 방 안과 랭킹에는 그대로 보여요.', people: (a, b) => a === b ? `${a}명` : `${a}~${b}명`, solo: '혼자', edit: '변경', rankLabelPlays: '판' },
     ja: { tabGames: 'ゲーム', tabRooms: '部屋', tabRank: 'ランキング', appDesc: '友達とスマホで遊ぶミニゲーム集！<br>ニックネームとキャラを決めて入ろう。', notFound: 'そのコードの部屋が見つかりません。コードを確認してください。',
-      newRoom: '部屋を作る', playNow: 'すぐ遊ぶ', makeRoom: '部屋を作る', startNow: 'スタート', langAny: '言語が違ってもOK', langSame: '同じ言語同士のみ', secMulti: 'マルチゲーム', secMultiSub: '部屋を作って友達と', secSolo: 'ひとりゲーム', secSoloSub: 'ひとりで記録に挑戦',
+      myRec: '自分の記録', newRoom: '部屋を作る', playNow: 'すぐ遊ぶ', makeRoom: '部屋を作る', startNow: 'スタート', langAny: '言語が違ってもOK', langSame: '同じ言語同士のみ', secMulti: 'マルチゲーム', secMultiSub: '部屋を作って友達と', secSolo: 'ひとりゲーム', secSoloSub: 'ひとりで記録に挑戦',
       hideMe: '自分を非表示にする', hiddenNote: '今は接続中リストに表示されません。ゲームの部屋とランキングにはそのまま表示されます。', people: (a, b) => a === b ? `${a}人` : `${a}〜${b}人`, solo: 'ひとり', edit: '変更', rankLabelPlays: '回' },
   });
   const $ = (id) => document.getElementById(id);
@@ -276,11 +284,16 @@
     const n = $('nickInput').value.trim();
     if (!n) { $('gateWarn').textContent = NG.t('needNick'); $('gateWarn').classList.add('on'); return; }
     if ([...n].length < 2) { $('gateWarn').textContent = NG.t('nickRule'); $('gateWarn').classList.add('on'); return; }
-    NG.login(n, avSel); $('gateNick').classList.add('hidden'); showLobby();
+    NG.login(n, avSel); if (NG.Badge) NG.Badge.load(); $('gateNick').classList.add('hidden'); showLobby();
   }
   $('enterBtn').addEventListener('click', enter);
   $('nickInput').addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
   $('meChip').addEventListener('click', () => { $('nickInput').value = NG.me ? NG.me.name : ''; avSel = NG.me ? NG.me.av : 0; renderAvPick(); $('lobby').classList.add('hidden'); $('gateNick').classList.remove('hidden'); });
+
+  // ── 보유 뱃지 버튼 (PC: 언어 버튼 왼쪽 / 폰: 닉네임 줄 오른쪽 끝)
+  function renderBadgeBtn() { if (!NG.Badge) { $('badgeBtn').classList.add('hidden'); return; } const nw = NG.Badge.newCount(); $('badgeBtn').innerHTML = `${NG.Badge.art('logo', 24)}<span>${NG.Badge.t('title')}</span><span class="bn">${NG.Badge.count()}</span>${nw ? '<span class="new">NEW</span>' : ''}`; }
+  $('badgeBtn').addEventListener('click', () => NG.Badge && NG.Badge.open());
+  if (NG.Badge) NG.Badge.onChange(renderBadgeBtn);
 
   // ── 접속자 패널
   let onlineAll = [], onlineOpen = false, onlineOff = null;
@@ -293,6 +306,7 @@
       const row = NG.el('div', 'ou pxb' + (g ? ' game' : '') + (canJoin ? ' join' : '') + (u.uid === NG.me.uid ? ' me' : ''));
       row.innerHTML = `${NG.avatarSVG(u.av, 24)}<span class="nm">${escapeHtml(u.name)}</span><span class="st"><i></i>${g ? NG.t('inGame', g.name[NG.ui]) : NG.t('online')}</span>`;
       if (canJoin) { row.title = NG.t('joinThis'); row.addEventListener('click', () => goRoom(u.code, g.id)); }
+      else if (NG.Badge) { row.classList.add('prof'); row.addEventListener('click', () => NG.Badge.mini(u.uid, u.name, u.av)); }   // 누르면 캐릭터와 대표 뱃지
       w.appendChild(row);
     }
     const more = $('omore'); more.classList.toggle('hidden', onlineAll.length <= 5);
@@ -404,20 +418,25 @@
     const field = g.rank.field, asc = !!g.rank.asc;
     const rows = await NG.leaderboard(g.id, field, 20, asc);
     if (!rows.length) { w.appendChild(NG.el('div', 'empty pxb', NG.t('rankEmpty'))); return; }
-    rows.forEach((r, i) => {
-      const row = NG.el('div', 'rrow pxb' + (r.uid === NG.me.uid ? ' me' : ''));
-      const no = NG.el('span', 'no'); no.innerHTML = i < 3 ? `<span class="medal m${i + 1}">${i + 1}</span>` : String(i + 1);
+    const mk = (r, i, pin) => {
+      const row = NG.el('div', 'rrow pxb' + (r.uid === NG.me.uid ? ' me' : '') + (pin ? ' pin' : ''));
+      const no = NG.el('span', 'no'); no.innerHTML = i < 0 ? '–' : i < 3 ? `<span class="medal m${i + 1}">${i + 1}</span>` : String(i + 1);
       const av = NG.el('span'); av.innerHTML = NG.avatarSVG(r.av, 30);
-      const nm = NG.el('span', 'nm', r.name || r.uid);
+      const nm = NG.el('span', 'nm'); if (pin) nm.appendChild(NG.el('span', 'mytag', NG.t('myRec'))); nm.appendChild(document.createTextNode(r.name || r.uid));
       const sub = NG.el('span', 'sub', g.rank.sub === 'acc' ? `${r.plays || 0}${NG.t('plays')}${r.acc != null ? ' · ' + NG.t('accuracy') + ' ' + r.acc + '%' : ''}` : g.type === 'solo' ? `${r.plays || 0}${NG.t('plays')}${r.best != null ? ' · ' + NG.t('best') + ' ' + r.best + 'ms' : ''}` : `${r.plays || 0}${NG.t('plays')} · ${r.score || 0}${NG.t('score')}`);
       nm.appendChild(sub);
       const val = NG.el('span', 'val', g.rank.unit ? `${r[field]}${typeof g.rank.unit === 'string' ? g.rank.unit : g.rank.unit[NG.ui]}` : `${r[field] || 0}${NG.t(field === 'wins' ? 'wins' : 'score')}`);
-      row.append(no, av, nm, val); w.appendChild(row);
-    });
+      row.append(no, av, nm, val); return row;
+    };
+    // 내 순위와 기록을 맨 위에 고정 (20위 밖이면 순위 없이 기록만)
+    const mi = rows.findIndex(r => r.uid === NG.me.uid);
+    if (mi >= 0) w.appendChild(mk(rows[mi], mi, true));
+    else { try { const s = await NG.myStats(g.id); if (s && s[field] != null) w.appendChild(mk({ ...s, uid: NG.me.uid, name: NG.me.name, av: NG.me.av }, -1, true)); } catch {} }
+    rows.forEach((r, i) => w.appendChild(mk(r, i)));
   }
 
   // ── 시작: 언어를 고른 적이 있으면 게이트를 건너뛰고 바로 로비(또는 닉네임)로
-  function refreshText() { NG.applyText(); renderHide(); $('langNow').textContent = $('langNow2').textContent = NG.ui === 'ja' ? '日本語' : '한국어'; document.documentElement.lang = NG.ui; renderAvPick(); if (!$('lobby').classList.contains('hidden')) { renderGames(); renderRankTabs(); loadRank(); if (roomsOff) { roomsOff(); roomsOff = null; } watchRooms(); } }
+  function refreshText() { NG.applyText(); renderHide(); renderBadgeBtn(); $('langNow').textContent = $('langNow2').textContent = NG.ui === 'ja' ? '日本語' : '한국어'; document.documentElement.lang = NG.ui; renderAvPick(); if (!$('lobby').classList.contains('hidden')) { renderGames(); renderRankTabs(); loadRank(); if (roomsOff) { roomsOff(); roomsOff = null; } watchRooms(); } }
   refreshText();
   if (!hasLang) $('gateLang').classList.remove('hidden');
   else if (NG.me) showLobby();

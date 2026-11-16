@@ -102,6 +102,7 @@
 <canvas id="confetti"></canvas>
 
 <script src="common.js"></script>
+<script src="badges.js"></script>
 <script>
 (() => {
   if (!NG.requireLogin()) return;
@@ -338,10 +339,13 @@
     if (!ev || !ev.n || ev.n <= lastEv) return; lastEv = ev.n; const n = ev.uid ? room.nameOf(ev.uid) : '';
     const map = { ok: ['win', t('evOk', n, ev.text)], no: ['close', t('evNo', n, ev.text)], pass: ['sys', t('evPass', n)], time: ['sys', t('evTime', n)], gone: ['sys', t('evGone', n)], reset: ['sys', t('evReset')], start: ['sys', t('evStart')] };
     const m = map[ev.type]; if (!m) return; NG.addMsg(m[0], '', m[1]);
+    if (NG.Badge && ev.uid === me()) { if (ev.type === 'ok') { bGuess++; if (bGuess === 1) NG.Badge.run({ i_oneshot: 1 }); } else if (ev.type === 'no') { bGuess++; NG.Badge.run({ i_wrong: 1 }); } else if (ev.type === 'pass') bPass++; }
+    if (ev.type === 'start') { bGuess = 0; bPass = 0; }
     if (ev.type === 'ok' && ev.uid === me()) NG.confetti();
   }
-  let first = true;
-  room.on('state', (s) => { state = { ...fresh(), ...(s || {}) }; if (first) { first = false; lastEv = (state.ev && state.ev.n) || 0; } else showEv(state.ev); render(); });
+  let first = true, bGuess = 0, bPass = 0, bGid = 0;
+  room.on('state', (s) => { const pp = state.phase; state = { ...fresh(), ...(s || {}) };
+    if (NG.Badge && state.phase === 'end' && pp === 'play' && bGid !== state.gid && order().includes(me())) { bGid = state.gid; NG.Badge.run({ i_plays: 1, i_first: done()[0] === me(), i_last: !done().includes(me()), i_pass5: bPass >= 5 }); } if (first) { first = false; lastEv = (state.ev && state.ev.n) || 0; } else showEv(state.ev); render(); });
   room.on('players', (list, info) => { for (const n of (info && info.notes) || []) NG.addMsg('sys', '', n); render(); });
   room.on('chat', (m) => NG.addMsg('', m.name, m.text));
 
