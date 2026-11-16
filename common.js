@@ -64,6 +64,11 @@
       info: { time: { ko: '30초', ja: '30秒' }, rules: {
         ko: ['원이 나타나면 최대한 빨리 터치해요.', '빗나가면 남은 시간이 0.5초 줄어들어요.', '30초 동안 맞힌 개수로 랭킹에 올라가요.'],
         ja: ['丸が出たら、できるだけ早くタップします。', '外すと残り時間が0.5秒減ります。', '30秒間に当てた数でランキングに載ります。'] } } },
+    { id: 'num',   type: 'solo',  page: 'num.html',   icon: 'grid', bg: '#3a2a5e', min: 1, max: 1, name: { ko: '숫자 찾기', ja: '数字さがし' },
+      desc: { ko: '1부터 25까지 순서대로 빠르게 터치!', ja: '1から25まで順番に素早くタップ！' }, rank: { field: 'time', label: { ko: '최고 기록', ja: 'ベスト記録' }, asc: true, unit: { ko: '초', ja: '秒' } },
+      info: { time: { ko: '약 30초', ja: '約30秒' }, rules: {
+        ko: ['5×5 칸에 1~25가 섞여 있어요.', '1부터 25까지 순서대로 최대한 빨리 터치!', '틀린 숫자를 누르면 0.5초가 더해져요.'],
+        ja: ['5×5のマスに1〜25がバラバラに並んでいます。', '1から25まで順番にできるだけ早くタップ！', '違う数字を押すと0.5秒プラスされます。'] } } },
   ];
   NG.game = (id) => NG.GAMES.find(g => g.id === id);
 
@@ -224,7 +229,8 @@
     moon: ['....kkkk..', '..kkyyyk..', '.kyyykk...', '.kyyk.....', 'kyyyk.....', 'kyyyk.....', '.kyyk.....', '.kyyykk...', '..kkyyyk..', '....kkkk..'],
     sound: ['....kk....', '...kwk..k.', 'kkkwwk...k', 'kwwwwk.k.k', 'kwwwwk.k.k', 'kkkwwk...k', '...kwk..k.', '....kk....'],
     note: ['...kkkkkk.', '...kwwwwk.', '...kwkkwk.', '...kwk.kk.', '...kwk....', '.kkkwk....', 'kwwwwk....', 'kwwwk.....', '.kkk......'],
-    nunchi: ['....kkkkkkk.....', '...kqqqqqqqk....', '..kqffffffffk.k.', '.kffffffffffkkgk', '.kffffffffffkkgk', '.kfkkwffkkwffkgk', '.kfkkwffkkwffkkk', '.kffffffffffffk.', '.kffffffffffffk.', '.kfffffffffffk..', '.kffkkkkkffffk..', '..kffffffffffk..', '..kffffffffkk...', '...kkkkkkkk.....', '................', '................'],
+    nunchi: ['................', '....kkkkkkkk....', '..kkqqffffffkk..', '.kqqffffffffgfk.', '.kqffffffffgggk.', 'kffffffffffgwgfk', 'kffkkfffkkfgggfk', 'kffkwfffkwffgffk', 'kffffffffffffffk', 'kfppffffffffppfk', '.kffffkfkfkfffk.', '.kfffffkfkffffk.', '..kffffffffffk..', '...kkffffffkk...', '.....kkkkkk.....', '................'],
+    grid: ['kkkkkkkkkkkkkkkk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kkkkkkkkkkkkkkkk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kkkkkkkkkkkkkkkk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kkkkkkkkkkkkkkkk'],
     who: ['.....kkkkkk.....', '.....kwkkwk.....', '.....kwwwkk.....', '.....kwwkwk.....', '.....kwwwwk.....', '.....kwwkwk.....', '.....kwwwwk.....', '..kkkkkkkkkkkk..', '.kvvvvkkkkvvvvk.', '.kvlvvvvvvvvvvk.', '.kvlvvvvvvvvvvk.', '.kvvvvvppvvvvvk.', '.kvvvvppppvvvvk.', '.kvvvvvppvvvvvk.', '.kddddddddddddk.', '..kkkkkkkkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],
     back: ['...kk.....', '..kwk.....', '.kwwkkkkk.', 'kwwwwwwwwk', '.kwwkkkkk.', '..kwk.....', '...kk.....'],

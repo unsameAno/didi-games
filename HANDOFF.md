@@ -1,88 +1,138 @@
-# DIDI Games — 인수인계 문서 (2026-11-13 기준, v2: 도트 리디자인)
+# DIDI Games — 인수인계 문서 (2026-11-16 기준, v4: 숫자 찾기 추가)
 
 ## 한 줄 요약
-친구들과 폰으로 즐기는 실시간 미니게임 플랫폼(멀티 + 1인). 가입 없이 닉네임만으로 입장. Netlify(정적 호스팅) + Firebase Realtime Database(실시간 통신). 한국어/일본어 지원. **모바일 우선**(PC는 넓혀서 대응), **도트(픽셀) 디자인**으로 통일.
+친구들과 폰으로 즐기는 실시간 미니게임 플랫폼(멀티 + 1인). 가입 없이 닉네임만으로 입장. GitHub Pages(정적 호스팅) + Firebase Realtime Database(실시간 통신). 한국어/일본어 지원. **모바일 우선**(PC는 넓혀서 대응), **도트(픽셀) 디자인**으로 통일.
 
 ## 배포·인프라
-- 사이트: **GitHub Pages로 이전 중** — 저장소 `unsameAno/didi-games`(Public), 예상 주소 https://unsameano.github.io/didi-games/ (Settings → Pages → main / root). 이전 주소: https://silver-marigold-c5055f.netlify.app (Netlify 무료 플랜은 배포 1번에 15크레딧·월 300크레딧이라 이전하기로 함)
+- 사이트: **GitHub Pages** — 저장소 `unsameAno/didi-games`(Public), 주소 https://unsameano.github.io/didi-games/
+  - 이전 Netlify 주소: https://silver-marigold-c5055f.netlify.app (사용 중단)
 - 배포 방법: zip을 풀어서 나온 파일들을 GitHub 저장소의 Add file → Upload files에 끌어다 놓고 Commit(같은 이름은 덮어씀, 1~2분 뒤 반영). 사용자가 직접 함. 수정은 모아서 한 번에. Claude 작업 공간에서는 Netlify·Firebase 주소에 접속할 수 없음 → 새 세션에서는 사용자에게 zip을 첨부받아 시작.
+- **zip 파일 이름 규칙**: `didi-games-MMDD[b].zip` (예: didi-games-1116.zip, didi-games-1116b.zip). 날짜를 붙여 구분.
 - Firebase 프로젝트 `ngmind` (Realtime Database, asia-southeast1). 설정값은 common.js 상단 `firebaseConfig`에 하드코딩 (공개 가능한 값).
-  - ⚠️ DB 보안 규칙이 "테스트 모드"라 **2026년 12월 중순쯤 자동으로 잠김**. 그때 게임이 "오프라인"이 되면 Firebase 콘솔 → Realtime Database → 규칙에서 `".read": true, ".write": true`로 바꾸도록 안내할 것.
+  - ⚠️ DB 보안 규칙이 "테스트 모드"라 **2026년 12월 중순쯤 자동으로 잠김**. 그때 게임이 "오프라인"이 되면 Firebase 콘솔 → Realtime Database → 규칙에서 `{"rules":{".read":true,".write":true}}`로 바꾸도록 안내.
 - 폰트: 도트 폰트 Galmuri(갈무리, 한글·일본어 지원)를 CDN으로 불러옴(`common.css` 맨 위 @import, jsdelivr `galmuri@latest`). 못 불러오면 Noto Sans KR로 대체.
 
-## 파일 구조 (/home/claude/platform 에서 작업, zip: didi-games-site.zip)
-- `index.html` — 언어 선택(**처음 한 번만**, localStorage `dm-ui` 있으면 건너뜀) → 닉네임+캐릭터 → 로비. 게임 카드를 누르면 **소개 팝업**(아이콘·소개·인원·시간·언어 표시·규칙 3줄, `NG.GAMES[].info`) → '방 만들기'/'시작하기'. 열린 방·코드·접속자 클릭은 팝업 없이 바로 입장. 로비: 로고(누르면 홈=게임 탭), '보유 뱃지' 버튼(PC: 언어 버튼 왼쪽 / 폰: 닉네임 줄 오른쪽 끝), 랭킹 탭 맨 위에 내 기록 고정, 탭(게임 / 열린 방 / 랭킹 — 모바일에선 화면 아래 고정 탭바), 게임 탭은 **멀티 게임 / 1인 게임** 두 구역, 방 참여(코드로 멀티 게임 방 찾아 입장), 접속 중 패널(모바일에선 접힘, 안에 '내 접속 숨기기' 스위치). `index.html?tab=rank&g=react`로 열면 해당 게임 랭킹 탭.
-- `common.js` — Firebase 초기화, `NG` 네임스페이스: 다국어(`NG.T`, `NG.t`, `NG.addT`, `applyText`가 `[data-ic]` 아이콘도 채움), 사용자(`NG.me`, `NG.login`, uid=정규화 닉네임), **픽셀 아트**: 아바타 16×16 8종(`NG.AV`, `NG.avatarSVG`), 게임 썸네일은 16×16 그림(palette, who, search, mafia, bolt, target) + 게임별 배경색(`NG.GAMES[].bg`) — 크기는 16의 배수(16/32/48/64)로 써야 또렷함. UI 아이콘(`NG.icon(name,size)` — pad, palette, bolt, door, trophy, globe, key, chat, people, crown, home, play, star, back), 로고(`NG.logoHTML(small)`, `NG.bindLogo(root, onLeave)`), `NG.Room` 클래스(입장/퇴장, 방장=가장 먼저 들어온 사람, 상태 동기화, 채팅, 로비 색인), 랭킹(`recordResult`, `recordBest`, `recordSolo`(낮을수록 좋음), `recordTop`(높을수록 좋음), `leaderboard`, `myStats`), 접속 상태(`setPresence`, `watchPresence`, `setHidePresence` — '내 접속 숨기기', localStorage `dm-hide`, 켜면 presence에 쓰지 않음), 모바일 레이아웃(`mobileLayout`: 100svh 기준, 키보드 열림/닫힘·화면 폭 변경·게임 단계 변경 때만 그림판 크기 재계산. `NG.layoutLock`=그리는 중 완전 고정, `NG.layoutHold`=게임 진행 중 유지).
+## 파일 구조 (/home/claude/platform에서 작업)
+- `index.html` — 언어 선택(처음 한 번만, localStorage `dm-ui` 있으면 건너뜀) → 닉네임+캐릭터 → 로비. 게임 카드를 누르면 **소개 팝업**(아이콘·소개·인원·시간·언어 표시·규칙 3줄, `NG.GAMES[].info`) → '방 만들기'/'시작하기'. 열린 방·코드·접속자 클릭은 팝업 없이 바로 입장. 로비: 로고(누르면 홈=게임 탭), **'보유 뱃지' 버튼**(PC: 언어 버튼 왼쪽 / 폰: 닉네임 줄 오른쪽 끝, 금색 보석 픽셀 아이콘, NEW 카운터), 랭킹 탭 맨 위에 내 기록 고정, 탭(게임 / 열린 방 / 랭킹 — 모바일에선 화면 아래 고정 탭바), 게임 탭은 **멀티 게임 / 1인 게임** 두 구역, 방 참여(코드로 멀티 게임 방 찾아 입장), 접속 중 패널(모바일에선 접힘). `index.html?tab=rank&g=react`로 열면 해당 게임 랭킹 탭.
+- `common.js` — Firebase 초기화, `NG` 네임스페이스: 다국어(`NG.T`, `NG.t`, `NG.addT`, `applyText`가 `[data-ic]` 아이콘도 채움), 사용자(`NG.me`, `NG.login`, uid=정규화 닉네임), **픽셀 아트**: 아바타 16×16 8종(`NG.AV`, `NG.avatarSVG`), 게임 썸네일은 16×16 그림(palette, who, search, mafia, bolt, target, nunchi 등) + 게임별 배경색(`NG.GAMES[].bg`) — 크기는 16의 배수(16/32/48/64)로 써야 또렷함. UI 아이콘(`NG.icon(name,size)` — pad, palette, bolt, door, trophy, globe, key, chat, people, crown, home, play, star, back), 로고(`NG.logoHTML(small)`, `NG.bindLogo(root, onLeave)`), `NG.Room` 클래스(입장/퇴장, 방장=가장 먼저 들어온 사람, 상태 동기화, 채팅, 로비 색인), 랭킹(`recordResult`, `recordBest`, `recordSolo`(낮을수록 좋음), `recordTop`(높을수록 좋음), `leaderboard`, `myStats`), 접속 상태(`setPresence`, `watchPresence`, `setHidePresence`), 모바일 레이아웃(`mobileLayout`), 서버 시간 `NG.now()` = `Date.now() + serverOffset`.
 - `common.css` — 도트 테마. 픽셀 테두리는 box-shadow 4방향(계단형 모서리) + 아래 깊이 그림자; 요소마다 `--bc`(테두리색) `--dc`(깊이색) `--dp`(깊이)만 바꿈. 클래스 `.pxb`를 붙이면 아무 요소나 픽셀 테두리. 버튼은 누르면 3px 내려감. 게임 공통 레이아웃(.top/.main/.board/.stage/.side/.quick), 모바일 규칙.
-- `draw.html` — Draw Mind(캐치마인드류, 멀티). 제시어 4개 중 선택(쉬움1·보통2·어려움1, 15초), 그리기 1/2/3분, 힌트는 빈 박스→시간 절반 후 초성(일본어는 첫 글자), 점수 10/15/25 + 속도 보너스(그린 사람 절반), 인원×2 라운드. 제시어는 언어별 520개(쉬움 190·보통 200·어려움 130, 분류 20개; 추가분은 `MORE` 블록의 문자열 목록). 같은 방에서 후보로 한 번 나온 제시어는 다시 안 나옴(`rooms/draw/{code}/used`, 방이 비면 초기화, 한 난이도를 다 쓰면 그 난이도만 다시). 일본어 제시어는 [표기, 읽기, 별칭…]. 상단 로고 누르면 방에서 나가 로비로. 모바일: 그리는 사람은 그림판에서 스크롤·확대가 막히고(터치 이벤트 preventDefault), 힌트 칸은 상단바에서 항상 한 줄을 차지해 높이가 안 바뀜. 그리는 사람에게는 정답 입력칸을 숨기고(최근 채팅 2줄만) 그림판을 크게, 게임 중엔 상단바의 언어 배지·연결 상태 숨김.
-- `react.html` — **반응속도 테스트(1인 게임, v2에서 새로 만듦)**. 방·코드 없음. 화면 전체가 터치 패드: 소개 → 빨강(1.5~4.5초 랜덤) → 초록에서 터치 → 기록 표시, 5회. 초록 전 터치=반칙(그 라운드 다시), 90ms 미만=찍기 반칙. 결과: 평균·가장 빠름·가장 느림·반칙 수·막대 그래프, 최고 기록 경신 표시, 현재 순위. 랭킹은 **평균(avg) 낮은 순**. PC는 스페이스/엔터.
-- `who.html` — **누구 누구 / だれだれ (멀티, 3~10명, 아이스 브레이킹)**. 주제("~할 것 같은 사람")가 나오면 각자 한 명에게 무기명 투표(20초, 자기 자신 불가, 고르고 아래 '투표하기'로 확정) → 1등(동점이면 공동)과 득표수만 공개(7초) → 10개 주제 후 각자 가장 많이 뽑힌 주제(최대 3개) 칭호, 0번이면 '아직 미스터리한 사람'. 랭킹·채팅 없음. 주제는 기본 120 + 매운맛 40을 섞어서 출제(파일 안 `BASIC`/`SPICY`, 한 줄에 `한국어 | 日本語`, 줄 순서가 주제 ID). 같은 방에서 나온 주제는 다시 안 나옴(`used`). **언어가 달라도 같은 방 가능**(`anyLang`) — 각자 자기 언어로 주제를 봄. 저장: `tally/{gid_round}/{뽑힌 uid}`=표 수, `voted/{gid_round}/{투표한 uid}`=true (누가 누구를 골랐는지는 저장하지 않음), state.wins[uid]="주제번호:표수,…".
-- `aim.html` — **에임 테스트 / エイムテスト (1인)**. 30초 동안 정사각형 영역에 원(영역의 18%, 고정 크기)이 하나씩 랜덤 위치에 나타나고, 맞히면 다음 원. 빗나가면 개수는 그대로, 남은 시간 -0.5초(누른 자리에 작은 '-0.5초' + 타이머 칸이 잠깐 분홍). 터치는 4px 여유. 결과: 맞힌 개수·정확도·빗나감·최고 기록 경신·순위. 랭킹은 맞힌 개수(hits) 많은 순 + 그 판의 정확도(acc). 폰/PC 구분 없음. 기록은 `NG.recordTop`.
-- `ingyu.html` — **잉규게임 / インギュゲーム (멀티, 3~10명, 같은 언어끼리만; 구 양세찬 게임)**. 대기실에서 방장이 카테고리 선택(목록 10개 또는 직접 입력, 채팅으로 상의) → 주제어 정하기: 앱이 순서를 섞어 고리로 배정(order[i]가 order[i+1]의 주제어 입력, 시작 전까지 수정 가능, 모두 저장하면 방장이 '확정하고 시작' → state.w에 복사되어 잠김) → 차례(2분): 질문 1개를 보내면 위쪽에 고정, 다른 사람은 예/아니오/애매해 버튼(집계 표시)+채팅, 차례인 사람은 '정답 도전'(차례당 1번, 질문 없이도 가능) 또는 '넘기기' → 맞히면 탈출·순위, 미해결 1명 남으면 종료(주제어·정해 준 사람 공개). 정답 비교는 `NG.norm`(띄어쓰기·대소문자·가나 차이 무시), 오타는 오답, 정답 인정 기능 없음. 랭킹: 1등=승리, 점수는 순위별. 경로: `words/{gid}/{대상}`, `turnq`, `ans/{gid_turnNo}/{uid}`, `act`(방장이 판정), state.ev(진행 알림). 주의: 자기 주제어 숨김은 화면에서만 가리는 것(DB에는 있음).
-- `mafia.html` — **마피아 / マフィア (멀티, 4~15명, 6~12명 추천, 같은 언어끼리만)**.
-  - 역할 11종+시민: mafia, doctor, police(자동 추천) / medium, soldier, politician, reporter, lover×2, spy, madam, joker(방장이 스위치로). 추천: 4명 마1·경찰, 5명 마1·의·경, 6~8명 마2, 9~12명 마3, 13~15명 마4. 검증: 역할 수 ≤ 인원, (마피아+스파이+마담)×2 < 인원.
-  - 설정(state.cfg): maf, doc, pol, extra{}, talk(120/180/300), night('seq' 순서대로=기본 | 'sim' 동시에 60초), reveal(탈락자 역할 공개; 영매 켜면 자동 꺼짐), auto(추천 따라가기).
-  - 흐름: lobby → role(10초, 역할 카드) → day(토론, 방장이 '토론 끝내고 투표' 가능) → vote(40초, 고르고 확정, 전원 투표 시 즉시) → result(공개 집계) → night → morning(발표) → day… → end. 첫날은 낮부터.
-  - 밤: seq는 mafia(25초)→doctor→police→spy→reporter(각 12초), 이번 판에 있는 역할만 부르고 **죽었어도 똑같이 부르고 기다림**. 차례가 아닌 사람·능력 없는 사람은 '눈을 감아 주세요' 화면. 마피아끼리는 서로의 선택이 실시간(작은 아바타)+비밀 채팅(`mchat`), 접선한 스파이·마담도 봄. 공격 대상=최다 선택, 동률이면 마지막 선택.
-  - 판정(resolveNight): 마담 유혹(낮 투표에서 마담이 찍은 사람, 마피아면 접선) → 의사 보호 → 공격(군인 1회 버팀 → 연인 대신 탈락 1회 → 탈락) → 경찰(마피아 여부, 스파이·마담은 아님)·스파이(역할 확인, 마피아면 접선)·기자(2일째 밤부터 1회, 다음 아침 공개). 정치인: 2표, 투표 처형 불가. 조커: 투표 처형 시 단독 승.
-  - 승리: 마피아 0명→시민 / 마피아 편 ≥ 나머지→마피아. 기록은 `NG.recordTeam`(이긴 편 전원 승리).
-  - 소리(Snd): 음성 안내=브라우저 speechSynthesis, 배경음·효과음=Web Audio 합성(파일 없음; day 밝게 / vote 긴장 / night 스산). 기본은 방장 폰만 켜짐(localStorage `mf-voice`/`mf-bgm`가 없으면 isHost), 상단 버튼으로 각각 켜고 끔, 대기실에 소리 테스트.
-  - 경로: `nact/{gid_day}/{uid}`={t,at}, `vote/{gid_day}/{uid}`, `mchat`. state에 roles·seen·info·pub·contact·used. **역할은 화면에서만 가림(DB에는 있음).** 개발용: 주소에 `?fast`를 붙이면 모든 시간이 1/10.
-- `nunchi.html` — **눈치 게임 / 空気読みゲーム** (3~15명, 언어 무관, 단판 20초). 누르면 `press/{gid}/{uid} = 서버 시각`만 기록하고, 방장이 시간순으로 묶어 판정(`groups`): 묶음의 첫 기록에서 0.3초(`WINDOW`) 안에 들어온 기록은 '동시' → 그 사람들 패배(`collide`). 겹침 없이 한 명만 남으면 그 사람 패배(`last`), 20초가 지나면 안 누른 사람 전원 패배(`timeout`). 늦게 도착하는 기록을 기다리려고 0.5초(`GRACE`) 뒤에 확정. 남은 시간은 `state.endAt`으로 각자 계산(매초 state를 쓰지 않음). 결과는 `NG.recordTeam`(패자 외 전원 승리), 랭킹은 승리 횟수. 뱃지 카운터 n_plays·n_wins·n_collide·n_last·n_first·n_freeze.
-- `badges.js` — **뱃지(업적 50개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. `NG.Badge`: `run({카운터: 숫자|true})`(게임에서 호출 → 카운터 증가 → 조건 판정 → '새 뱃지 획득!' 알림), `addTitle(qi, ko, ja)`, `open()`(보유 뱃지 화면: 대표 뱃지 3칸, 탭 전체/게임별/공통, 얻은 것은 색·못 얻은 것은 실루엣+진행도, 누르면 상세·대표 설정), `mini(uid, name, av)`(친구의 캐릭터+대표 뱃지 3개 — 로비 접속 중 목록에서 사람을 누르면), `art(id, size, locked)`.
-  - 뱃지 정의는 파일 안 `LIST`(한 줄에 하나: id, 탭, 카운터 키 또는 계산 함수, 필요 값, 숨김, 이름 ko/ja, 조건 ko/ja). 그림은 `D.art[id]`(16×16, 없으면 로고). 그림 원본·미리보기 스크립트는 작업 공간 `/home/claude/art/badges_art.py`(세션이 바뀌면 없음 → badges.js 안의 art가 원본).
-  - 뱃지 화면의 탭: 폰은 옆으로 밀어 넘김, PC(마우스)는 여러 줄로 접히고 두 줄을 넘으면 '더 보기/접기' 버튼(`fitTabs`). 고른 탭이 접힌 줄에 있으면 자동으로 펼침.
-  - 숨김 뱃지(조건 ???): r_slow, r_guess, a_one, i_pass5, g_dawn. 단계는 메달 색이 아니라 이름·그림이 다른 별개 뱃지(예: 에임 55 명사수 / 70 인간 터렛 / 80 에임핵 의심).
-  - 카운터가 오르는 곳: react.html·aim.html의 finish, draw.html의 state 핸들러(정답·5초 컷·피카소·종료)와 chat(아깝다), ingyu.html의 showEv(정답/오답/넘기기)와 종료, who.html의 badgeEnd(칭호 기록), mafia.html의 badgeAnn(처형·첫날 밤·의사 구출)·logAnn(경찰 적발)·종료.
-  - 처음 한 번 `seed()`가 기존 stats(판수·승리·반응속도 평균·에임 개수)를 카운터로 옮김. 세부 조건 뱃지는 기능을 넣은 뒤부터 쌓임.
-  - 저장: `badges/{uid}/c|got|rep|titles`. 새 뱃지 수는 localStorage `dm-bnew`(보유 뱃지 버튼의 NEW). **닉네임에 묶이고 조작은 막을 수 없음(재미용).**
+- `draw.html` — Draw Mind(캐치마인드류, 멀티). 제시어 4개 중 선택(쉬움1·보통2·어려움1, 15초), 그리기 1/2/3분, 힌트 초성, 점수 10/15/25 + 속도 보너스, 인원×2 라운드.
+- `react.html` — **반응속도 테스트(1인 게임)**. 화면 전체가 터치 패드, 소개 → 빨강(1.5~4.5초 랜덤) → 초록에서 터치 → 기록 표시, 5회. 랭킹은 **평균(avg) 낮은 순**.
+- `who.html` — **누구 누구 / だれだれ(멀티, 3~10명)**. 주제("~할 것 같은 사람")가 나오면 각자 한 명에게 무기명 투표(20초) → 1등과 득표수만 공개(7초) → 10개 주제 후 칭호. `anyLang`=true.
+- `aim.html` — **에임 테스트(1인)**. 30초 동안 원 맞히기. 빗나가면 -0.5초. 랭킹은 맞힌 개수(hits) 많은 순.
+- `ingyu.html` — **잉규게임(멀티, 3~10명, 같은 언어끼리)**. 카테고리 선택 → 고리로 주제어 배정 → 질문/예아니오 → 정답 도전. 랭킹: 1등=승리.
+- `mafia.html` — **마피아(멀티, 4~15명, 같은 언어끼리)**. 역할 11종+시민. 낮/밤/투표 사이클. 소리(speechSynthesis + Web Audio 합성).
+- `num.html` — **숫자 찾기 / 数字さがし(1인)**. 3·2·1 카운트다운 → 5×5에 섞인 1~25를 순서대로 터치, 틀리면 +0.5초. 기록=time(초, 소수 둘째자리), 랭킹 낮은 순(`recordSolo`). 썸네일 아이콘 `grid`. 뱃지 카운터: f_plays, f_eagle(≤10초), f_doctor(≤15초), f_slow(실수 0), f_slip(실수 5+, 숨김).
+- `nunchi.html` — **눈치 게임 / 空気読みゲーム(3~15명, 언어 무관)**. 단판 20초. 누르면 `press/{gid}/{uid} = NG.now()` 기록 → 방장이 판정(`WINDOW=0.3s`, `GRACE=0.5s`). 세 가지 종료: `collide`(0.3초 안에 2명+), `last`(1명 남음), `timeout`(20초 초과). 랭킹은 승리 횟수. 뱃지 카운터: n_plays, n_wins, n_collide, n_last, n_first, n_freeze.
+- `badges.js` — **뱃지(업적 50개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. 아래 뱃지 시스템 항목 참조.
 - `HANDOFF.md` — 이 문서.
+
+## 뱃지 시스템 (badges.js)
+`NG.Badge`: `run(obj)`, `addTitle`, `open()`, `mini(uid,name,av)`, `load()`, `art(id,size,locked)`
+
+### 뱃지 탭
+| 탭 ID | 아이콘 | 이름(ko/ja) |
+|-------|--------|-------------|
+| all | star | 전체 / 全部 |
+| react | bolt | 반응속도 / 反射神経 |
+| aim | target | 에임 / エイム |
+| ingyu | search | 잉규 / インギュ |
+| mafia | mafia | 마피아 / マフィア |
+| nunchi | nunchi | 눈치 게임 / 空気読み |
+| num | grid | 숫자 찾기 / 数字さがし |
+| common | globe | 공통 / 共通 |
+
+### 뱃지 목록 요약 (+숫자 찾기 5개)
+- **반응속도(react)**: 내 꿈은 프로게이머(≤165ms), 엄청 빠르다(≤200ms), 평범한 속도(300~450ms), 느린 편(≥500ms), 100판(숨김)
+- **에임(aim)**: 명사수(≥55), 인간 터렛(≥70), 에임핵 의심(≥80), 초보 사수(≤30), 딱 한 개만(1개), 연습벌레(100판)
+- **잉규(ingyu)**: 탈출 성공(첫 승), 고수(5승), 연속 패배(3연패), 힌트 없이 탈출(첫 질문에 정답), 패스의 왕(5번 패스)
+- **마피아(mafia)**: 마피아 마스터(10승), 완벽한 하루(첫날 처형 성공), 의심은 금물(10번 경찰), 그게 나야(첫날 처형), 마피아 단체행동(5번 공동승리)
+- **눈치(nunchi)**: 1번 선봉대(3번 1등), 역시 눈치왕(3번 승리), 얼음이 되었다(3번 freeze), 동시충돌(collide 10번, 숨김), 눈치 중독(100판)
+- **공통(common)**: 올라운더(8게임 모두), 혼자서도 잘 놀아요(1인 게임 r+a+f 50판), 그랜드마스터(금 보석 아이콘)
+
+### 뱃지 아트
+16×16 도트 픽셀 아트. `D.art[id]`에 문자열 행 배열로 저장. 팔레트:
+```
+k=검정, w=흰색/밝음, e=크림, f=살색, g=주황, y=노랑, r=빨강, o=산호
+t=하늘, b=파랑, v=보라, p=핑크, n=갈색, j=카키, i=회색, s=은색, .=투명
+```
+- `D.art.r200` — 번개 손(엄지+검지+중지 편, 번개 마크). 비율: 손바닥 ≈ 중지 길이, 손가락 길이 다양. 첫 행: `.......kk.......`
+- `D.art.n_wins`, `n_collide`, `n_last`, `n_first`, `n_freeze` — 눈치 게임 뱃지 아트
+
+### PC 뱃지 탭 접기/펴기
+`fitTabs()` 함수. `@media (hover: hover) and (min-width: 620px)` 블록 안에서 작동. 탭이 2줄 이상이면 '더 보기' 버튼 표시, `tabsOpen` 상태로 토글.
+
+### 저장 구조
+`badges/{uid}/c` 카운터, `got` 획득 여부, `rep` 대표 뱃지 3개, `titles` 칭호 목록. 새 뱃지 수는 localStorage `dm-bnew`.
 
 ## Firebase 데이터 구조
 - `badges/{uid}` 뱃지 카운터·획득·대표·칭호
-- `users/{uid}` 프로필 · `presence/{uid}` 접속 상태(status: 'lobby'|게임id, code — 1인 게임은 code 없음)
+- `users/{uid}` 프로필 · `presence/{uid}` 접속 상태(status: 'lobby'|게임id, code)
 - `rooms/{game}/{code}/players|state|chat|strokes|pick|results` (멀티 게임만)
 - `lobby/{code}` 열린 방 색인(방장이 갱신, 끊기면 자동 삭제)
-- `stats/{game}/{uid}` {name, av, plays, wins, score, best, avg} — react는 avg(평균 최고)·best(한 번 최고)
+- `stats/{game}/{uid}` {name, av, plays, wins, score, best, avg}
+- `press/{gid}/{uid}` = 서버 시각 (눈치 게임 전용, 임시)
+
+## 픽셀 아트 시스템
+- **아이콘 렌더링**: `NG.icon(name, size)` — 16×16 문자열 행 → SVG `<rect>` 타일. `[data-ic]` 속성으로 자동 채움.
+- **아바타**: `NG.avatarSVG(avKey, size)` — 8종 캐릭터 중 하나를 SVG로.
+- **뱃지 아트**: `NG.Badge.art(id, size, locked)` — locked=true면 실루엣(투명도 50%, 색상 제거).
+- **그림 추가 방법**: `ICONS` 객체에 16행의 문자열 배열 추가. 팔레트 문자 1개 = 1픽셀.
+- **미리보기**: `/home/claude/art/` 아래 Python 스크립트들 (새 세션에서는 없음 — badges.js 안의 art가 원본).
 
 ## 확정된 설계 결정
-- **모바일 우선**: 폰 세로(360~430px) 기준 설계, 터치 영역 44px 이상, 주요 버튼은 엄지 닿는 아래쪽, 키보드가 열려도 무대가 안 가려지게. PC는 넓혀서 대응.
-- **도트 디자인 통일**: 각진 픽셀 테두리·계단형 모서리·눌리는 버튼, 도트 폰트, 이모지 대신 픽셀 아이콘(게임 안 메시지의 이모지 일부는 남아 있음). 캐릭터는 디즈니처럼 귀여운 느낌(큰 눈·하이라이트·볼터치)의 **DIDI 오리지널** 픽셀 캐릭터 — 기존 캐릭터 IP를 닮게 만들지 않음.
-- `NG.GAMES[].anyLang`=true인 게임은 방 언어 고정 규칙을 적용하지 않음(현재 who). `rank`가 없는 게임은 랭킹 탭에 안 나옴.
-- 게임 구분: `NG.GAMES[].type` = 'multi'(방 만들기) | 'solo'(바로 시작). 로비 목록도 이 기준으로 위(멀티)/아래(1인) 분리.
-- 언어 선택 화면에 안내 문구(일부 게임은 같은 언어끼리만 함께 플레이 가능, ko/ja 병기).
-- 작업 방식: 사용자와 먼저 의견을 나누고, 만들어 달라고 할 때만 작업물을 만든다.
-- 로고 클릭 = 홈(로비). 게임 화면에서 로비로 가면 언어 선택 화면을 다시 보여주지 않음.
-- 사용자 구분은 닉네임만(지인 위주). 나중에 커지면 PIN 추가 예정.
-- 방 언어는 빈 방에 첫 입장한 사람의 화면 언어로 고정. 다른 언어 사용자는 입장 거부(안내 후 로비로).
-- 빈 방에 첫 입장 시 이전 기록(상태·그림·채팅) 초기화.
-- 코드 칩 클릭 → 코드 4자리만 복사(링크 아님). 주소 `#코드`로 열면 코드 자동 입력.
-- 모바일 순서(멀티): 상단바 → 그림판(+도구) → 빠른 정답 입력칸(최근 채팅 2줄) → 참가자(가로 칩) → 채팅. 상단바+그림판은 sticky.
+- **모바일 우선**: 폰 세로(360~430px) 기준 설계, 터치 영역 44px 이상, 키보드가 열려도 무대가 안 가려지게.
+- **도트 디자인 통일**: 각진 픽셀 테두리·계단형 모서리·눌리는 버튼, 도트 폰트(Galmuri), 이모지 대신 픽셀 아이콘.
+- `NG.GAMES[].anyLang`=true인 게임은 방 언어 고정 규칙 없음(현재: nunchi, who).
+- 게임 구분: `NG.GAMES[].type` = 'multi'(방 만들기) | 'solo'(바로 시작). 로비 목록도 멀티/1인 분리.
+- 보유 뱃지 버튼: PC에서는 언어 버튼 왼쪽, 모바일에서는 닉네임 줄 오른쪽 끝.
+- 로고 클릭 = 홈(로비). 게임 화면에서 로비로 가면 언어 선택 화면 다시 보여주지 않음.
+- 방 언어는 빈 방에 첫 입장한 사람의 화면 언어로 고정. 다른 언어 사용자는 입장 거부.
+- 코드 칩 클릭 → 코드 4자리만 복사. 주소 `#코드`로 열면 코드 자동 입력.
 - 색: 블랙/보라 기반, 포인트 핑크/노랑/민트/보라/파랑.
-- 플랫폼 이름 DIDI Games, 그림 게임 이름 Draw Mind, 반응속도 게임 이름 반응속도 테스트(反射神経テスト).
+- **작업 방식**: 사용자와 먼저 의견을 나누고, "작업해줘"라고 할 때만 작업물을 만든다.
 
 ## 작업 규칙 (Claude가 지킬 것)
-- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html ingyu.html mafia.html nunchi.html react.html aim.html common.js badges.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
-- 화면 확인: 작업 공간의 google-chrome + playwright로 390×844(폰)·1280×800(PC) 스크린샷. Firebase·폰트 CDN은 막혀 있으니 오프라인 상태 화면으로 확인(실제 동작은 사용자 테스트).
-- 새 게임 추가 시: `NG.GAMES`에 등록(id, type, page, icon(픽셀 아이콘 이름), name/desc ko·ja, min/max, rank{field, asc, unit}) + `{id}.html` 작성(멀티는 draw.html, 1인은 react.html을 템플릿으로) + 다국어 `NG.addT`. 필요한 아이콘은 common.js `ICONS`에 문자열 도트로 추가.
-- 모든 문구는 ko/ja 둘 다. 방 안에서 언어가 섞이지 않게.
-- 큰 변경마다 이 HANDOFF.md를 갱신.
+1. 수정 후 반드시 JS 문법 검사: `node --check common.js badges.js`; html 안 `<script>`는 추출해서 검사
+2. zip 재생성:
+   ```
+   cd /home/claude/platform && rm -f ../didi-games-MMDD.zip && zip -r ../didi-games-MMDD.zip \
+     index.html draw.html who.html ingyu.html mafia.html nunchi.html react.html aim.html num.html \
+     common.js badges.js common.css HANDOFF.md
+   ```
+   (새 게임 추가 시 목록에 추가)
+3. zip 파일을 SendUserFile로 사용자에게 전송
+4. 화면 확인: google-chrome + playwright로 390×844(폰)·1280×800(PC) 스크린샷 (Firebase·폰트 CDN은 막혀 있으니 오프라인 상태로 확인)
+5. 큰 변경마다 이 HANDOFF.md와 스킬 모두 갱신
+
+### 새 게임 추가 체크리스트
+- [ ] `NG.GAMES[]`에 등록: `{id, type, page, icon, bg, anchor, min, max, anyLang, name{ko,ja}, desc{ko,ja}, rank{field,asc,unit}, info{ko:[],ja:[]}}`
+- [ ] 필요한 아이콘을 `common.js ICONS`에 16×16 도트로 추가
+- [ ] `{id}.html` 작성 (멀티는 nunchi.html, 1인은 react.html을 템플릿으로)
+- [ ] `badges.js`에 탭 추가 + 뱃지 5개 정의 + 아트
+- [ ] `badges.js PLAYS` 배열에 `{id}_plays` 추가
+- [ ] 올라운더 뱃지 조건 카운터 수 증가
+- [ ] 모든 문구 ko/ja 둘 다
+
+### 뱃지 추가 체크리스트
+- [ ] `LIST`에 뱃지 한 줄 추가: `[id, tab, counter_key_or_fn, threshold, hidden, {ko,ja}, {ko,ja}]`
+- [ ] `D.art[id]`에 16×16 도트 아트 추가
+- [ ] 게임 HTML에서 `NG.Badge.run({카운터: 값})` 호출 추가
 
 ## 다음 할 일 후보
-- 잉규게임: 글 답변 + 답변마다 리액션(맞아/아니야/애매해) 구조는 보류 — 사용자가 해 본 뒤 결정
-- 1인 게임 후보: 숫자 순서 터치, 색깔 맞히기, 순간 기억, 타이밍 멈추기
-- 라이어 게임(여행용 추천), 텔레스트레이션, 스피드 퀴즈, 마피아, 밸런스 게임, 이심전심
+- ✅ 숫자 찾기 추가, 눈치 게임 썸네일 수정(둥근 머리, 땀방울 머리 안) — 1116d
+- **똥피하기류 게임**(1인, 좌우 이동 피하기, 버틴 시간 랭킹) 논의 중
+- 이심전심, 기억력 게임, 밸런스 게임
 - 랭킹에 "내 기록" 강조·프로필 페이지
-- Firebase 규칙 정식 설정(테스트 모드 만료 대비)
-- Netlify 사이트 이름 변경(예: didi-games.netlify.app)
-- Draw Mind 화면 도트 디테일 다듬기(그림판 도구 아이콘화, 메시지 이모지 → 픽셀 아이콘)
+- Firebase 규칙 정식 설정 (테스트 모드 2026년 12월 중순 만료 대비)
+- Draw Mind 도트 디테일 다듬기 (그림판 도구 아이콘화, 메시지 이모지 → 픽셀 아이콘)
 
 ## 아직 검증 안 된 것
-- 뱃지: 가짜 DB로 기존 기록 옮기기, 보유 뱃지 화면(폰·PC·일본어), 대표 뱃지 설정, 친구 프로필, 에임에서 '딱 한 개만' 획득 알림 확인. 미확인: 게임별 세부 카운터 대부분(Draw Mind·마피아·잉규게임의 실제 상황), 실제 Firebase.
-- 마피아: 가짜 DB로 6명 기본 판(동시에)과 13명 전 역할 판(순서대로) 자동 테스트 통과 — 정치인 처형 불가, 마담 유혹으로 경찰 무효, 군인 버팀, 스파이 접선, 동점, 연인 대신 탈락, 기자 공개, 조커 승리, 시민 승리 확인. **미확인: 소리(음성·배경음은 들어 볼 수 없었음), 실제 여러 기기, 마피아 채팅 표시, 방장 교체, 중간 퇴장, 일본어 화면.**
-- 잉규게임: 가짜 DB로 4명 한 판 자동 테스트 통과(오답·정답·넘기기·순위·기록). 실제 여러 기기, 채팅 표시, 중간 퇴장 처리는 미확인.
-- 에임 테스트: 가짜 DB로 자동 플레이 통과(빗나감 4번 → 2초 감소, 기록 저장 확인). 실기기 터치 체감·랭킹 표시는 미확인.
-- 누구 누구: 가짜 DB로 한 판 끝까지 자동 테스트는 통과. 실제 Firebase·여러 기기·한일 혼합 방은 미확인.
-- v2 도트 리디자인 실기기 확인(특히 Galmuri 폰트 로딩, iPhone 안전 영역, 아래 탭바).
-- 반응속도 테스트 실기기 체감 측정값, 랭킹 저장(avg). 이전 '반응속도 대결' 기록(best만 있음)은 새 랭킹(avg)에 안 보임.
+- 뱃지: 실제 Firebase에서 카운터 증가, 획득 알림, 대표 뱃지 설정, 친구 프로필(`mini`). 게임별 세부 카운터 대부분(실제 상황).
+- 마피아: 소리(음성·배경음), 실제 여러 기기, 마피아 채팅, 방장 교체, 중간 퇴장, 일본어 화면.
+- 잉규게임: 채팅 표시, 중간 퇴장 처리, 실제 여러 기기.
+- 에임 테스트: 실기기 터치 체감·랭킹 표시.
+- 눈치 게임: 실제 Firebase·여러 기기.
+- 숫자 찾기: 실기기 터치·랭킹 표시(초 단위).
+- v2 도트 리디자인 실기기 확인 (Galmuri 폰트 로딩, iPhone 안전 영역, 아래 탭바).
 - 플랫폼 로비(열린 방·접속자·랭킹) 다중 접속 실제 테스트.

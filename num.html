@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>숫자 찾기 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; overscroll-behavior: none; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top .ttl { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 520px; margin: 0 auto; padding: 16px 15px 18px; min-height: 0; }
+  .pad { flex: 1; min-height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 22px 18px; gap: 10px;
+    background: var(--panel); --bc: var(--ink); --dc: var(--ink); --dp: 9px; user-select: none; -webkit-user-select: none; }
+  .pad.tapme { cursor: pointer; touch-action: none; }
+  .pad h2 { font-size: clamp(26px, 8vw, 40px); color: var(--yellow); text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
+  .pad .hint { font-size: 13px; color: var(--yellow); animation: blink 1s steps(2) infinite; }
+  .big-ic { animation: bob 1s steps(2) infinite; margin-bottom: 6px; }
+  .cd { font-size: clamp(90px, 30vw, 150px); color: #fff; font-weight: 700; text-shadow: 6px 6px 0 var(--pink); animation: pop .3s steps(3); }
+  .bestline { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; justify-content: center; }
+  .bestline b { color: var(--yellow); }
+  /* 플레이 화면 */
+  .hud { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+  .hud .tm { font-size: 30px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+  .hud .tm small { font-size: 14px; color: var(--muted); margin-left: 2px; }
+  .hud .nx { justify-self: center; background: var(--yellow); color: var(--ink); padding: 6px 14px; font-weight: 700; font-size: 13px; --bc: var(--ink); --dc: #b38b00; --dp: 4px; }
+  .hud .nx b { font-size: 22px; margin-left: 4px; }
+  .hud .ms { justify-self: end; font-size: 13px; color: var(--muted); }
+  .hud .ms b { color: var(--pink); font-size: 18px; }
+  .hud .pen { color: var(--pink); font-weight: 700; animation: pop .2s steps(2); }
+  .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; width: 100%; aspect-ratio: 1; padding: 8px; background: var(--panel); --bc: var(--ink); --dc: var(--ink); --dp: 6px; touch-action: none; }
+  .cell { display: flex; align-items: center; justify-content: center; background: var(--panel2); color: #fff; font-weight: 700; font-size: clamp(20px, 7.5vw, 34px); font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,.35); cursor: pointer; min-height: 44px; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  .cell.done { background: var(--mint); color: var(--ink); opacity: .35; box-shadow: none; }
+  .cell.bad { background: var(--pink); animation: shake .25s steps(4); }
+  @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  /* 결과 */
+  .result .lbl { font-size: 12px; color: var(--muted); }
+  .result .big { font-size: clamp(56px, 17vw, 92px); font-weight: 700; color: var(--yellow); line-height: 1; text-shadow: 5px 5px 0 var(--pink); animation: pop .3s steps(3); font-variant-numeric: tabular-nums; }
+  .result .big small { font-size: .3em; color: var(--text); text-shadow: none; margin-left: 4px; }
+  .grade { font-size: 15px; color: var(--yellow); font-weight: 700; }
+  .newrec { background: var(--pink); color: #fff; font-size: 13px; font-weight: 700; padding: 5px 10px; animation: pulse .6s steps(2) infinite; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 380px; padding: 3px; }
+  .stat { background: var(--panel2); padding: 8px 4px; }
+  .stat b { display: block; font-size: 17px; color: var(--text); }
+  .stat span { font-size: 10px; color: var(--muted); }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 3px 3px 0; }
+  .acts button { font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .full { grid-column: 1 / -1; font-size: 18px; padding: 14px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <span class="ttl"><i data-ic="grid" data-size="16"></i><span data-t="gameName"></span></span>
+  <span class="grow"></span>
+  <span class="pill"><i data-ic="trophy" data-size="14"></i><span id="bestTxt">--</span></span>
+</div>
+<div class="wrap">
+  <div class="hud hidden" id="hud"><span class="tm" id="tm">0.00<small>s</small></span><span class="nx pxb" id="nx"></span><span class="ms" id="ms"></span></div>
+  <div class="board pxb hidden" id="board"></div>
+  <div class="pad pxb" id="pad"></div>
+  <div class="acts hidden" id="acts">
+    <button class="btn-main full" id="againBtn"><i data-ic="play" data-size="14"></i><span data-t="again2"></span></button>
+    <button class="btn-yellow" id="rankBtn"><i data-ic="trophy" data-size="16"></i><span data-t="seeRank"></span></button>
+    <button class="btn-ghost" id="homeBtn"><i data-ic="home" data-size="16"></i><span data-t="toLobby"></span></button>
+  </div>
+</div>
+<script src="common.js"></script>
+<script src="badges.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '숫자 찾기', again2: '다시 도전', seeRank: '랭킹 보기', toLobby: '로비로', tapStart: '화면을 터치해서 시작', next: '다음', miss: '실수',
+      intro: '1부터 25까지 순서대로!<br>틀리면 <b>+0.5초</b>', resLbl: '클리어 기록', missS: '실수', penS: '벌칙', clearS: '순수 시간', newRec: '최고 기록 경신!', prevBest: (v) => `이전 최고 ${v}초`, myRank: (n) => `현재 랭킹 ${n}위`,
+      bestPill: (v) => `최고 ${v}초`, noBest: '첫 도전!', grade: (s) => s < 10 ? '매의 눈!' : s < 15 ? '숫자 박사급!' : s < 20 ? '꽤 빨라요' : s < 30 ? '평균 정도예요' : '다시 도전해 봐요' },
+    ja: { gameName: '数字さがし', again2: 'もう一回', seeRank: 'ランキング', toLobby: 'ロビーへ', tapStart: '画面をタップしてスタート', next: '次', miss: 'ミス',
+      intro: '1から25まで順番に！<br>間違えると<b>+0.5秒</b>', resLbl: 'クリアタイム', missS: 'ミス', penS: 'ペナルティ', clearS: '純粋タイム', newRec: '自己ベスト更新！', prevBest: (v) => `前回のベスト ${v}秒`, myRank: (n) => `現在ランキング${n}位`,
+      bestPill: (v) => `ベスト ${v}秒`, noBest: '初挑戦！', grade: (s) => s < 10 ? '鷹の目！' : s < 15 ? '数字博士級！' : s < 20 ? 'かなり速い' : s < 30 ? '平均くらい' : 'もう一回挑戦！' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const GAME = 'num', N = 25, PEN = 0.5;
+  document.title = `${t('gameName')} · DIDI Games`;
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); NG.bindLogo(document);
+  NG.setPresence(GAME); NG.touchProfile(GAME);
+
+  let best = null, phase = 'intro', target = 1, misses = 0, t0 = 0, raf = 0, cdTimer = null, result = null;
+  const fmt = (v) => v.toFixed(2);
+  const setBest = () => { $('bestTxt').textContent = best != null ? t('bestPill', fmt(best)) : t('noBest'); };
+  setBest();
+  NG.myStats(GAME).then(s => { if (s && s.time != null) { best = s.time; setBest(); if (phase === 'intro') render(); } });
+
+  const pad = $('pad'), board = $('board');
+  const elapsed = () => (performance.now() - t0) / 1000 + misses * PEN;
+  function hud() {
+    $('nx').innerHTML = `${t('next')}<b>${Math.min(target, N)}</b>`;
+    $('ms').innerHTML = `${t('miss')} <b>${misses}</b>`;
+  }
+  function tick() { $('tm').innerHTML = `${fmt(elapsed())}<small>s</small>`; raf = requestAnimationFrame(tick); }
+  function render() {
+    const playing = phase === 'play';
+    pad.classList.toggle('hidden', playing); board.classList.toggle('hidden', !playing); $('hud').classList.toggle('hidden', !playing);
+    $('acts').classList.toggle('hidden', phase !== 'result');
+    pad.className = 'pad pxb' + (phase === 'intro' ? ' tapme' : '') + (phase === 'result' ? ' result' : '') + (playing ? ' hidden' : '');
+    if (phase === 'intro') {
+      pad.innerHTML = `<div class="big-ic">${NG.icon('grid', 64)}</div><h2>${t('gameName')}</h2><p style="font-size:14px;line-height:1.7">${t('intro')}</p>
+        ${best != null ? `<div class="bestline">${NG.icon('trophy', 14)}<b>${t('bestPill', fmt(best))}</b></div>` : ''}<div class="hint">▶ ${t('tapStart')}</div>`;
+    } else if (phase === 'result') {
+      const r = result;
+      pad.innerHTML = `<div class="lbl">${t('resLbl')}</div><div class="big">${fmt(r.time)}<small>s</small></div><div class="grade">${t('grade', r.time)}</div>
+        <div id="recLine" style="min-height:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center"></div>
+        <div class="stats"><div class="stat pxb"><b>${fmt(r.raw)}</b><span>${t('clearS')}</span></div><div class="stat pxb"><b>${r.misses}</b><span>${t('missS')}</span></div><div class="stat pxb"><b>+${fmt(r.misses * PEN)}</b><span>${t('penS')}</span></div></div>`;
+    }
+  }
+  function countdown() {
+    phase = 'cd'; render(); let n = 3;
+    const show = () => { pad.innerHTML = `<div class="cd">${n}</div>`; };
+    show(); clearInterval(cdTimer);
+    cdTimer = setInterval(() => { n--; if (n > 0) show(); else { clearInterval(cdTimer); start(); } }, 700);
+  }
+  function start() {
+    const nums = Array.from({ length: N }, (_, i) => i + 1);
+    for (let i = N - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [nums[i], nums[j]] = [nums[j], nums[i]]; }
+    board.innerHTML = nums.map(v => `<div class="cell" data-v="${v}">${v}</div>`).join('');
+    target = 1; misses = 0; phase = 'play'; render(); hud();
+    t0 = performance.now(); cancelAnimationFrame(raf); tick();
+  }
+  function finish() {
+    cancelAnimationFrame(raf);
+    const raw = (performance.now() - t0) / 1000, time = Math.round((raw + misses * PEN) * 100) / 100;
+    result = { time, raw, misses }; phase = 'result'; render();
+    if (NG.Badge) NG.Badge.run({ f_plays: 1, f_eagle: time <= 10, f_doctor: time <= 15, f_slow: misses === 0, f_slip: misses >= 5 });
+    const prevBest = best;
+    NG.recordSolo(GAME, { time }).then(async (res) => {
+      const line = $('recLine'); if (!line) return;
+      const prev = res && res.prev && res.prev.time != null ? res.prev.time : prevBest;
+      if (prev == null || time < prev) { line.insertAdjacentHTML('beforeend', `<span class="newrec">★ ${t('newRec')}</span>`); if (prev != null) line.insertAdjacentHTML('beforeend', `<span class="lbl">${t('prevBest', fmt(prev))}</span>`); NG.confetti(); }
+      best = prev == null ? time : Math.min(prev, time); setBest();
+      try { const rows = await NG.leaderboard(GAME, 'time', 200, true); const i = rows.findIndex(r => r.uid === NG.me.uid); if (i >= 0) line.insertAdjacentHTML('beforeend', `<span class="lbl">${NG.icon('trophy', 12)} ${t('myRank', i + 1)}</span>`); } catch {}
+    });
+  }
+  board.addEventListener('pointerdown', (e) => {
+    const c = e.target.closest('.cell'); if (!c || phase !== 'play' || c.classList.contains('done')) return;
+    e.preventDefault();
+    if (+c.dataset.v === target) {
+      c.classList.add('done'); target++;
+      if (target > N) return finish();
+      hud();
+    } else {
+      misses++; hud(); if (navigator.vibrate) navigator.vibrate(80);
+      c.classList.remove('bad'); void c.offsetWidth; c.classList.add('bad'); setTimeout(() => c.classList.remove('bad'), 260);
+      $('ms').insertAdjacentHTML('beforeend', ` <span class="pen">+${PEN}</span>`);
+    }
+  });
+  pad.addEventListener('pointerdown', (e) => { if (phase !== 'intro') return; e.preventDefault(); countdown(); });
+  window.addEventListener('keydown', (e) => { if ((e.code === 'Space' || e.code === 'Enter') && (phase === 'intro' || phase === 'result')) { e.preventDefault(); if (phase === 'intro') countdown(); else $('againBtn').click(); } });
+  $('againBtn').addEventListener('click', () => { countdown(); });
+  $('rankBtn').addEventListener('click', () => { location.href = 'index.html?tab=rank&g=' + GAME; });
+  $('homeBtn').addEventListener('click', () => { location.href = 'index.html'; });
+  render();
+})();
+</script>
+</body>
+</html>
