@@ -28,7 +28,8 @@
   - 승리: 마피아 0명→시민 / 마피아 편 ≥ 나머지→마피아. 기록은 `NG.recordTeam`(이긴 편 전원 승리).
   - 소리(Snd): 음성 안내=브라우저 speechSynthesis, 배경음·효과음=Web Audio 합성(파일 없음; day 밝게 / vote 긴장 / night 스산). 기본은 방장 폰만 켜짐(localStorage `mf-voice`/`mf-bgm`가 없으면 isHost), 상단 버튼으로 각각 켜고 끔, 대기실에 소리 테스트.
   - 경로: `nact/{gid_day}/{uid}`={t,at}, `vote/{gid_day}/{uid}`, `mchat`. state에 roles·seen·info·pub·contact·used. **역할은 화면에서만 가림(DB에는 있음).** 개발용: 주소에 `?fast`를 붙이면 모든 시간이 1/10.
-- `badges.js` — **뱃지(업적 45개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. `NG.Badge`: `run({카운터: 숫자|true})`(게임에서 호출 → 카운터 증가 → 조건 판정 → '새 뱃지 획득!' 알림), `addTitle(qi, ko, ja)`, `open()`(보유 뱃지 화면: 대표 뱃지 3칸, 탭 전체/게임별/공통, 얻은 것은 색·못 얻은 것은 실루엣+진행도, 누르면 상세·대표 설정), `mini(uid, name, av)`(친구의 캐릭터+대표 뱃지 3개 — 로비 접속 중 목록에서 사람을 누르면), `art(id, size, locked)`.
+- `nunchi.html` — **눈치 게임 / 空気読みゲーム** (3~15명, 언어 무관, 단판 20초). 누르면 `press/{gid}/{uid} = 서버 시각`만 기록하고, 방장이 시간순으로 묶어 판정(`groups`): 묶음의 첫 기록에서 0.3초(`WINDOW`) 안에 들어온 기록은 '동시' → 그 사람들 패배(`collide`). 겹침 없이 한 명만 남으면 그 사람 패배(`last`), 20초가 지나면 안 누른 사람 전원 패배(`timeout`). 늦게 도착하는 기록을 기다리려고 0.5초(`GRACE`) 뒤에 확정. 남은 시간은 `state.endAt`으로 각자 계산(매초 state를 쓰지 않음). 결과는 `NG.recordTeam`(패자 외 전원 승리), 랭킹은 승리 횟수. 뱃지 카운터 n_plays·n_wins·n_collide·n_last·n_first·n_freeze.
+- `badges.js` — **뱃지(업적 50개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. `NG.Badge`: `run({카운터: 숫자|true})`(게임에서 호출 → 카운터 증가 → 조건 판정 → '새 뱃지 획득!' 알림), `addTitle(qi, ko, ja)`, `open()`(보유 뱃지 화면: 대표 뱃지 3칸, 탭 전체/게임별/공통, 얻은 것은 색·못 얻은 것은 실루엣+진행도, 누르면 상세·대표 설정), `mini(uid, name, av)`(친구의 캐릭터+대표 뱃지 3개 — 로비 접속 중 목록에서 사람을 누르면), `art(id, size, locked)`.
   - 뱃지 정의는 파일 안 `LIST`(한 줄에 하나: id, 탭, 카운터 키 또는 계산 함수, 필요 값, 숨김, 이름 ko/ja, 조건 ko/ja). 그림은 `D.art[id]`(16×16, 없으면 로고). 그림 원본·미리보기 스크립트는 작업 공간 `/home/claude/art/badges_art.py`(세션이 바뀌면 없음 → badges.js 안의 art가 원본).
   - 뱃지 화면의 탭: 폰은 옆으로 밀어 넘김, PC(마우스)는 여러 줄로 접히고 두 줄을 넘으면 '더 보기/접기' 버튼(`fitTabs`). 고른 탭이 접힌 줄에 있으면 자동으로 펼침.
   - 숨김 뱃지(조건 ???): r_slow, r_guess, a_one, i_pass5, g_dawn. 단계는 메달 색이 아니라 이름·그림이 다른 별개 뱃지(예: 에임 55 명사수 / 70 인간 터렛 / 80 에임핵 의심).
@@ -61,7 +62,7 @@
 - 플랫폼 이름 DIDI Games, 그림 게임 이름 Draw Mind, 반응속도 게임 이름 반응속도 테스트(反射神経テスト).
 
 ## 작업 규칙 (Claude가 지킬 것)
-- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html ingyu.html mafia.html react.html aim.html common.js badges.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
+- 수정 후 반드시 JS 문법 검사(`node --check common.js`, html 안 `<script>`는 추출해서 검사) → zip 재생성(`cd /home/claude/platform && rm -f ../didi-games-site.zip && zip -r ../didi-games-site.zip index.html draw.html who.html ingyu.html mafia.html nunchi.html react.html aim.html common.js badges.js common.css HANDOFF.md`) → 사용자에게 zip 전송.
 - 화면 확인: 작업 공간의 google-chrome + playwright로 390×844(폰)·1280×800(PC) 스크린샷. Firebase·폰트 CDN은 막혀 있으니 오프라인 상태 화면으로 확인(실제 동작은 사용자 테스트).
 - 새 게임 추가 시: `NG.GAMES`에 등록(id, type, page, icon(픽셀 아이콘 이름), name/desc ko·ja, min/max, rank{field, asc, unit}) + `{id}.html` 작성(멀티는 draw.html, 1인은 react.html을 템플릿으로) + 다국어 `NG.addT`. 필요한 아이콘은 common.js `ICONS`에 문자열 도트로 추가.
 - 모든 문구는 ko/ja 둘 다. 방 안에서 언어가 섞이지 않게.

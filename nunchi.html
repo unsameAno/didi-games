@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>눈치 게임 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 눈치 게임 — 단판. 겹치면 패배, 끝까지 안 누르고 혼자 남아도 패배 */
+  body { display: flex; flex-direction: column; min-height: 100dvh; touch-action: manipulation; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top h1 { font-size: 15px; }
+  .top button { min-height: 36px; padding: 6px 12px; font-size: 13px; margin: 0; }
+  .wrap { flex: 1; width: 100%; max-width: 560px; margin: 0 auto; padding: 18px 15px 12px; display: flex; flex-direction: column; gap: 16px; }
+  .qcard { text-align: center; padding: 16px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .qcard .lbl { font-size: 11px; color: var(--muted); font-weight: 700; display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .qcard .q { font-size: clamp(19px, 5.5vw, 26px); font-weight: 700; color: var(--yellow); line-height: 1.45; word-break: keep-all; text-shadow: 3px 3px 0 var(--ink); }
+  .qcard .sub { font-size: 12px; color: var(--muted); line-height: 1.7; word-break: keep-all; }
+  .tbar { width: 100%; height: 10px; background: var(--ink); position: relative; }
+  .tbar i { position: absolute; inset: 0 auto 0 0; background: var(--mint); }
+  .tbar.hot i { background: var(--pink); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 12px; padding: 3px; }
+  .pbtn { display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 58px; text-align: left; font-size: 15px; background: var(--panel); margin: 0; cursor: default; --dp: 0px; --in: 0 0 0 0 transparent; }
+  .pbtn .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .pbtn .tag { font-size: 10px; background: var(--ink); color: var(--muted); padding: 2px 6px; }
+  .pbtn .num { font-size: 17px; font-weight: 700; color: #1a1426; background: var(--yellow); min-width: 28px; text-align: center; padding: 2px 4px; }
+  .pbtn .num.wait { background: var(--ink); color: var(--muted); }
+  .pbtn.out { --bc: var(--pink); } .pbtn.out .num { background: var(--pink); color: #fff; }
+  .pbtn.me2 { --bc: var(--purple); }
+  /* 가운데 큰 버튼 */
+  .zone { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 180px; }
+  .tapbtn { width: min(76vw, 260px); height: min(76vw, 260px); border-radius: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; margin: 0; font-size: 15px; background: var(--pink); color: #fff; --bc: #fff; --dc: #8e2350; --dp: 10px; }
+  .tapbtn b { font-size: clamp(54px, 20vw, 86px); line-height: 1; text-shadow: 4px 4px 0 rgba(0,0,0,.25); }
+  .tapbtn:disabled { background: var(--panel); color: var(--muted); --bc: var(--line); --dc: var(--ink); }
+  .tapbtn.mine { background: var(--mint); color: #11331f; --dc: #11604a; }
+  .big-ic { animation: bob 1s steps(2) infinite; }
+  .note { text-align: center; color: var(--muted); font-size: 13px; line-height: 1.7; word-break: keep-all; }
+  .acts { position: sticky; bottom: 0; z-index: 5; width: 100%; max-width: 560px; margin: 0 auto; padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); background: var(--bg); display: flex; gap: 14px; }
+  .acts button { flex: 1; font-size: 17px; padding: 14px 10px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .msg2 { flex: 1; text-align: center; color: var(--muted); font-size: 13px; padding: 12px 6px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <h1><i data-ic="nunchi" data-size="16"></i><span data-t="gameName"></span></h1>
+  <span class="code-chip" id="codeChip"></span>
+  <span class="grow"></span>
+  <button class="btn-ghost" id="leaveBtn" data-t="leave"></button>
+</div>
+<div class="wrap" id="view"></div>
+<div class="acts" id="acts"></div>
+<canvas id="confetti"></canvas>
+
+<script src="common.js"></script>
+<script src="badges.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '눈치 게임', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요.<br>노란 코드를 누르면 복사돼요.`,
+      need: (n) => `${n}명부터 시작할 수 있어요`, waitHost: '방장이 시작하기를 기다리는 중…', startBtn: '게임 시작',
+      playTitle: '눈치 싸움!', playSub: '아무 때나 눌러서 다음 숫자를 가져가요.<br>같이 누르면 둘 다 탈락, 끝까지 안 누르고 혼자 남아도 탈락!',
+      next: '다음 숫자', mineNum: '내 숫자', tapNow: '누르기', waitOthers: '다른 사람을 기다리는 중…', secLeft: (s) => `${s}초`,
+      watching: '지금은 구경 중이에요. 다음 판부터 참여해요!',
+      endCollide: '동시에 눌렀어요!', endLast: '마지막 한 명!', endTimeout: '시간 종료!',
+      subCollide: '같은 숫자를 가져가려다 둘 다 걸렸어요', subLast: '끝까지 버티다 혼자 남았어요', subTimeout: '끝내 누르지 못했어요',
+      youWin: '살아남았어요!', youLose: '걸렸어요…', order: '누른 순서', nobody: '아무도 누르지 않았어요',
+      againBtn: '한 판 더', toLobby: '로비로', players: (n) => `참가자 ${n}명`, youTag: '나', none: '-' },
+    ja: { gameName: '空気読みゲーム', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。<br>黄色いコードを押すとコピーできます。`,
+      need: (n) => `${n}人から始められます`, waitHost: 'ホストの開始を待っています…', startBtn: 'ゲーム開始',
+      playTitle: '空気読み勝負！', playSub: '好きなタイミングで押して次の数字を取ります。<br>同時に押すと両方アウト、最後の1人になってもアウト！',
+      next: '次の数字', mineNum: '自分の数字', tapNow: '押す', waitOthers: 'みんなを待っています…', secLeft: (s) => `${s}秒`,
+      watching: '今は見学中です。次の回から参加します！',
+      endCollide: '同時に押しました！', endLast: '最後の1人！', endTimeout: '時間切れ！',
+      subCollide: '同じ数字を取ろうとして、2人ともアウト', subLast: '最後まで我慢して1人残りました', subTimeout: '最後まで押せませんでした',
+      youWin: '生き残りました！', youLose: 'アウト…', order: '押した順番', nobody: '誰も押しませんでした',
+      againBtn: 'もう一回', toLobby: 'ロビーへ', players: (n) => `参加者 ${n}人`, youTag: '自分', none: '-' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const GAME = 'nunchi', MIN = 3, LIMIT = 20000;          // 한 판 20초
+  const WINDOW = 300;                                      // 이 안에 겹치면 '동시'
+  const GRACE = Number(new URLSearchParams(location.search).get('grace') || 500);  // 늦게 도착하는 기록을 기다리는 여유
+  document.title = `${t('gameName')} · DIDI Games`;
+
+  const code = NG.codeFromHash() || NG.genCode();
+  try { history.replaceState(null, '', '#' + code.toLowerCase()); } catch {}
+  const room = new NG.Room(GAME, code);
+  const fresh = () => ({ phase: 'lobby', gid: 0, cands: [], endAt: 0, order: [], col: [], losers: [], reason: '' });
+  let state = fresh(), press = {}, myPress = 0, lastKey = '', ended = 0;
+  const me = () => NG.me.uid;
+  const arr = (x) => Array.isArray(x) ? x.filter(v => v != null) : Object.values(x || {}).filter(v => v != null);
+  const cands = () => arr(state.cands);
+  const myPresses = () => press[state.gid] || {};
+
+  // 누른 기록을 시간순으로 묶는다. 한 묶음의 첫 기록에서 WINDOW 안에 들어온 것은 같은 숫자를 노린 것으로 본다.
+  function groups(p, ids) {
+    const list = Object.entries(p || {}).filter(([id]) => ids.includes(id)).map(([id, v]) => ({ id, t: +v })).sort((a, b) => a.t - b.t || (a.id < b.id ? -1 : 1));
+    const gs = []; let cur = null;
+    for (const x of list) { if (!cur || x.t - cur.t0 >= WINDOW) { cur = { t0: x.t, ids: [x.id] }; gs.push(cur); } else cur.ids.push(x.id); }
+    return gs;
+  }
+
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); $('codeChip').textContent = code; NG.bindCodeChip($('codeChip'), code);
+  const leave = async () => { try { await room.leave(); } catch {} location.href = 'index.html'; };
+  NG.bindLogo(document, () => room.leave());
+  $('leaveBtn').addEventListener('click', leave);
+
+  // ───── 방장: 시작과 판정
+  function startGame() {
+    if (!room.isHost || room.active().length < MIN) return;
+    const gid = NG.now() % 100000000;
+    room.ref.child('press').remove().catch(() => {});
+    myPress = 0;
+    room.pushState({ ...fresh(), gid, cands: room.active().map(p => p.id), endAt: NG.now() + LIMIT, phase: 'play' });
+  }
+  function finish(st, losers, reason, gs) {
+    room.pushState({ ...st, phase: 'end', losers, reason, col: reason === 'collide' ? losers : [], order: gs.filter(g => g.ids.length === 1).map(g => g.ids[0]) });
+    const o = arr(st.cands);
+    NG.recordTeam(GAME, o, o.filter(id => !losers.includes(id)));
+  }
+  function check() {
+    if (!room.isHost) return;
+    const st = room.state; if (!st || st.phase !== 'play') return;
+    const ids = arr(st.cands), p = press[st.gid] || {}, now = NG.now(), gs = groups(p, ids);
+    const live = ids.filter(id => room.players[id]);
+    if (live.length < 2) { if (now > st.endAt) finish(st, [], 'timeout', gs); return; }
+    for (const g of gs) {
+      if (now < g.t0 + WINDOW + GRACE) return;             // 아직 확정 전 — 조금 더 기다린다
+      if (g.ids.length > 1) return finish(st, g.ids, 'collide', gs);
+    }
+    const rest = live.filter(id => p[id] == null);
+    if (rest.length === 1) return finish(st, rest, 'last', gs);
+    if (rest.length === 0) { const last = gs[gs.length - 1]; return finish(st, last ? last.ids : [], 'last', gs); }
+    if (now > st.endAt) return finish(st, rest, 'timeout', gs);
+  }
+  room.setHostLoop(() => check());
+  setInterval(() => { check(); tick(); }, 160);
+
+  // ───── 누르기
+  function tap() {
+    if (state.phase !== 'play' || myPress || !cands().includes(me())) return;
+    myPress = NG.now(); render(true);
+    room.ref.child(`press/${state.gid}/${me()}`).set(myPress).catch(() => { myPress = 0; render(true); });
+  }
+  const pressedCount = () => Object.keys(myPresses()).length;
+  const myNum = () => { const gs = groups(myPresses(), cands()); for (let i = 0; i < gs.length; i++) if (gs[i].ids.includes(me())) return i + 1; return 0; };
+
+  // ───── 화면
+  const person = (id, size) => NG.avatarSVG(room.avOf(id), size);
+  function tick() {   // 1초마다 다시 그리지 않고 남은 시간만 갱신
+    if (state.phase !== 'play') return;
+    const left = Math.max(0, state.endAt - NG.now());
+    const bar = $('tbarFill'); if (bar) { bar.style.width = (left / LIMIT * 100) + '%'; bar.parentElement.classList.toggle('hot', left <= 5000); }
+    const s = $('secs'); if (s) s.textContent = t('secLeft', Math.ceil(left / 1000));
+  }
+  function render(force) {
+    const st = state, ph = st.phase;
+    const key = [ph, st.gid, !!myPress, pressedCount(), room.playerList().map(p => p.id).join(','), room.isHost, NG.ui].join('|');
+    if (!force && key === lastKey) { tick(); return; }
+    lastKey = key;
+    const view = $('view'), acts = $('acts'); view.innerHTML = ''; acts.innerHTML = '';
+
+    if (ph === 'lobby') {
+      const list = room.playerList();
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="big-ic">${NG.icon('nunchi', 64)}</div><div class="q">${t('waitTitle')}</div><div class="sub">${t('waitText', code)}</div><div class="lbl">${NG.icon('people', 12)} ${t('players', list.length)}</div></div>`);
+      const g = NG.el('div', 'grid');
+      for (const p of list) { const b = NG.el('div', 'pbtn pxb'); b.innerHTML = `${person(p.id, 36)}<span class="nm">${esc(room.nameOf(p.id))}</span>${p.id === room.hostId() ? `<span class="tag">${t('host')}</span>` : ''}`; g.appendChild(b); }
+      view.appendChild(g);
+      if (room.isHost) {
+        const ok = room.active().length >= MIN;
+        const b = NG.el('button', 'btn-main'); b.disabled = !ok;
+        b.innerHTML = ok ? `${NG.icon('play', 14)}<span>${t('startBtn')}</span>` : `<span style="font-size:13px">${t('need', MIN)}</span>`;
+        b.addEventListener('click', startGame); acts.appendChild(b);
+      } else acts.appendChild(NG.el('div', 'msg2', room.active().length >= MIN ? t('waitHost') : t('need', MIN)));
+    }
+
+    else if (ph === 'play') {
+      const inGame = cands().includes(me()), left = Math.max(0, st.endAt - NG.now());
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="q">${t('playTitle')}</div><div class="tbar${left <= 5000 ? ' hot' : ''}"><i id="tbarFill" style="width:${left / LIMIT * 100}%"></i></div><div class="lbl"><span id="secs">${t('secLeft', Math.ceil(left / 1000))}</span> · ${pressedCount()} / ${cands().length}</div><div class="sub">${t('playSub')}</div></div>`);
+      const z = NG.el('div', 'zone');
+      const b = NG.el('button', 'tapbtn pxb' + (myPress ? ' mine' : ''));
+      b.disabled = !inGame || !!myPress;
+      b.innerHTML = myPress ? `<span>${t('mineNum')}</span><b>${myNum() || '?'}</b><span style="font-size:12px">${t('waitOthers')}</span>` : `<span>${t('next')}</span><b>${pressedCount() + 1}</b><span style="font-size:12px">${t('tapNow')}</span>`;
+      b.addEventListener('click', tap);
+      z.appendChild(b); view.appendChild(z);
+      if (!inGame) acts.appendChild(NG.el('div', 'msg2', t('watching')));
+      else acts.appendChild(NG.el('div', 'msg2', `${pressedCount()} / ${cands().length}`));
+    }
+
+    else if (ph === 'end') {
+      const losers = arr(st.losers), lost = losers.includes(me()), inGame = cands().includes(me());
+      const r = st.reason || 'timeout';
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="big-ic">${NG.icon(r === 'collide' ? 'bolt' : r === 'last' ? 'nunchi' : 'moon', 48)}</div><div class="q">${t(r === 'collide' ? 'endCollide' : r === 'last' ? 'endLast' : 'endTimeout')}</div><div class="sub">${t(r === 'collide' ? 'subCollide' : r === 'last' ? 'subLast' : 'subTimeout')}</div>${inGame ? `<div class="lbl" style="color:${lost ? 'var(--pink)' : 'var(--mint)'};font-size:14px">${t(lost ? 'youLose' : 'youWin')}</div>` : ''}</div>`);
+      const order = arr(st.order);
+      if (order.length || r === 'timeout') view.insertAdjacentHTML('beforeend', `<div class="note">${order.length ? t('order') : t('nobody')}</div>`);
+      const g = NG.el('div', 'grid');
+      for (const id of cands()) {
+        const i = order.indexOf(id), out = losers.includes(id);
+        const b = NG.el('div', 'pbtn pxb' + (out ? ' out' : '') + (id === me() ? ' me2' : ''));
+        b.innerHTML = `<span class="num${i < 0 ? ' wait' : ''}">${i < 0 ? (out && r === 'collide' ? '!' : t('none')) : i + 1}</span>${person(id, 32)}<span class="nm">${esc(room.nameOf(id))}</span>`;
+        g.appendChild(b);
+      }
+      view.appendChild(g);
+      if (inGame && !lost && ended !== st.gid) { ended = st.gid; NG.confetti(); }
+      if (room.isHost) { const b = NG.el('button', 'btn-main', t('againBtn')); b.disabled = room.active().length < MIN; b.addEventListener('click', startGame); acts.appendChild(b); }
+      const h = NG.el('button', 'btn-ghost', t('toLobby')); h.addEventListener('click', leave); acts.appendChild(h);
+    }
+  }
+
+  // 판이 끝나면 내 결과로 뱃지 기록 (한 판에 한 번)
+  let badgeGid = 0;
+  function badgeEnd() {
+    if (!NG.Badge || !state.gid || badgeGid === state.gid) return; badgeGid = state.gid;
+    if (!cands().includes(me())) return;
+    const losers = arr(state.losers), lost = losers.includes(me()), r = state.reason;
+    NG.Badge.run({ n_plays: 1, n_wins: !lost, n_collide: lost && r === 'collide', n_last: lost && r === 'last',
+      n_first: !lost && arr(state.order)[0] === me(), n_freeze: lost && r === 'timeout' });
+  }
+  room.on('state', (s) => {
+    const pp = state.phase, pg = state.gid;
+    state = { ...fresh(), ...(s || {}) };
+    if (state.gid !== pg) myPress = 0;
+    if (state.phase === 'end' && pp === 'play') badgeEnd();
+    render();
+  });
+  room.on('players', () => render());
+  room.join(fresh()).then(r => {
+    if (r.error) { location.href = 'index.html?err=' + encodeURIComponent(r.error); return; }
+    room.listen(room.ref.child('press'), 'value', (s) => { press = s.val() || {}; check(); render(); });
+    render(true);
+  });
+  render(true);
+})();
+</script>
+</body>
+</html>

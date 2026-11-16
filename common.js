@@ -49,6 +49,11 @@
       info: { time: { ko: '약 15~40분', ja: '約15〜40分' }, tip: { ko: '6~12명 추천', ja: '6〜12人がおすすめ' }, rules: {
         ko: ['시작하면 각자 비밀 역할을 받아요. 방장이 역할 구성을 정해요.', '낮에는 토론하고 투표로 한 명을 처형, 밤에는 마피아와 능력자가 움직여요.', '마피아를 모두 찾으면 시민 승리, 마피아가 절반이 되면 마피아 승리!'],
         ja: ['スタートすると秘密の役職が配られます。構成はホストが決めます。', '昼は議論して投票で1人を処刑、夜はマフィアと能力者が動きます。', 'マフィアを全員見つければ市民の勝ち、マフィアが半数になればマフィアの勝ち！'] } } },
+    { id: 'nunchi', type: 'multi', page: 'nunchi.html', icon: 'nunchi', bg: '#5a2740', min: 3, max: 15, anyLang: true, name: { ko: '눈치 게임', ja: '空気読みゲーム' },
+      desc: { ko: '같이 누르면 둘 다 탈락! 단판 눈치 싸움', ja: '同時に押すと両方アウト！一発勝負の空気読み' }, rank: { field: 'wins', label: { ko: '승리', ja: '勝利' } },
+      info: { time: { ko: '20초', ja: '20秒' }, tip: { ko: '언어가 달라도 함께 할 수 있어요', ja: '言語が違っても一緒に遊べます' }, rules: {
+        ko: ['아무 때나 버튼을 눌러 다음 숫자를 가져가요.', '0.3초 안에 두 명이 같이 누르면 둘 다 탈락!', '끝까지 안 누르고 혼자 남아도 탈락이에요.'],
+        ja: ['好きなタイミングでボタンを押し、次の数字を取ります。', '0.3秒以内に2人が同時に押すと両方アウト！', '最後まで押さずに1人残ってもアウトです。'] } } },
     { id: 'react', type: 'solo',  page: 'react.html', icon: 'bolt', bg: '#2a2466', min: 1, max: 1, name: { ko: '반응속도 테스트', ja: '反射神経テスト' },
       desc: { ko: '초록불이 켜지면 바로 터치!', ja: '緑になったらすぐタップ！' }, rank: { field: 'avg', label: { ko: '평균 기록', ja: '平均記録' }, asc: true, unit: 'ms' },
       info: { time: { ko: '약 1분', ja: '約1分' }, rules: {
@@ -219,6 +224,7 @@
     moon: ['....kkkk..', '..kkyyyk..', '.kyyykk...', '.kyyk.....', 'kyyyk.....', 'kyyyk.....', '.kyyk.....', '.kyyykk...', '..kkyyyk..', '....kkkk..'],
     sound: ['....kk....', '...kwk..k.', 'kkkwwk...k', 'kwwwwk.k.k', 'kwwwwk.k.k', 'kkkwwk...k', '...kwk..k.', '....kk....'],
     note: ['...kkkkkk.', '...kwwwwk.', '...kwkkwk.', '...kwk.kk.', '...kwk....', '.kkkwk....', 'kwwwwk....', 'kwwwk.....', '.kkk......'],
+    nunchi: ['....kkkkkkk.....', '...kqqqqqqqk....', '..kqffffffffk.k.', '.kffffffffffkkgk', '.kffffffffffkkgk', '.kfkkwffkkwffkgk', '.kfkkwffkkwffkkk', '.kffffffffffffk.', '.kffffffffffffk.', '.kfffffffffffk..', '.kffkkkkkffffk..', '..kffffffffffk..', '..kffffffffkk...', '...kkkkkkkk.....', '................', '................'],
     who: ['.....kkkkkk.....', '.....kwkkwk.....', '.....kwwwkk.....', '.....kwwkwk.....', '.....kwwwwk.....', '.....kwwkwk.....', '.....kwwwwk.....', '..kkkkkkkkkkkk..', '.kvvvvkkkkvvvvk.', '.kvlvvvvvvvvvvk.', '.kvlvvvvvvvvvvk.', '.kvvvvvppvvvvvk.', '.kvvvvppppvvvvk.', '.kvvvvvppvvvvvk.', '.kddddddddddddk.', '..kkkkkkkkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],
     back: ['...kk.....', '..kwk.....', '.kwwkkkkk.', 'kwwwwwwwwk', '.kwwkkkkk.', '..kwk.....', '...kk.....'],
