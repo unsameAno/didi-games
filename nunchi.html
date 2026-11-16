@@ -42,6 +42,7 @@
   .acts { position: sticky; bottom: 0; z-index: 5; width: 100%; max-width: 560px; margin: 0 auto; padding: 12px 18px calc(14px + env(safe-area-inset-bottom)); background: var(--bg); display: flex; gap: 14px; }
   .acts button { flex: 1; font-size: 17px; padding: 14px 10px; display: inline-flex; align-items: center; justify-content: center; }
   .acts .msg2 { flex: 1; text-align: center; color: var(--muted); font-size: 13px; padding: 12px 6px; line-height: 1.6; }
+  .cdn { font-size: clamp(72px, 24vw, 120px); font-weight: 700; color: #fff; line-height: 1; text-shadow: 5px 5px 0 var(--pink); animation: pop .3s steps(3); }
 </style>
 </head>
 <body>
@@ -62,7 +63,7 @@
 (() => {
   if (!NG.requireLogin()) return;
   NG.addT({
-    ko: { gameName: '눈치 게임', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요.<br>노란 코드를 누르면 복사돼요.`,
+    ko: { getReady: '준비…', gameName: '눈치 게임', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요.<br>노란 코드를 누르면 복사돼요.`,
       need: (n) => `${n}명부터 시작할 수 있어요`, waitHost: '방장이 시작하기를 기다리는 중…', startBtn: '게임 시작',
       playTitle: '눈치 싸움!', playSub: '아무 때나 눌러서 다음 숫자를 가져가요.<br>같이 누르면 둘 다 탈락, 끝까지 안 누르고 혼자 남아도 탈락!',
       next: '다음 숫자', mineNum: '내 숫자', tapNow: '누르기', waitOthers: '다른 사람을 기다리는 중…', secLeft: (s) => `${s}초`,
@@ -71,7 +72,7 @@
       subCollide: '같은 숫자를 가져가려다 둘 다 걸렸어요', subLast: '끝까지 버티다 혼자 남았어요', subTimeout: '끝내 누르지 못했어요',
       youWin: '살아남았어요!', youLose: '걸렸어요…', order: '누른 순서', nobody: '아무도 누르지 않았어요',
       againBtn: '한 판 더', toLobby: '로비로', players: (n) => `참가자 ${n}명`, youTag: '나', none: '-' },
-    ja: { gameName: '空気読みゲーム', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。<br>黄色いコードを押すとコピーできます。`,
+    ja: { getReady: '準備…', gameName: '空気読みゲーム', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。<br>黄色いコードを押すとコピーできます。`,
       need: (n) => `${n}人から始められます`, waitHost: 'ホストの開始を待っています…', startBtn: 'ゲーム開始',
       playTitle: '空気読み勝負！', playSub: '好きなタイミングで押して次の数字を取ります。<br>同時に押すと両方アウト、最後の1人になってもアウト！',
       next: '次の数字', mineNum: '自分の数字', tapNow: '押す', waitOthers: 'みんなを待っています…', secLeft: (s) => `${s}秒`,
@@ -91,7 +92,7 @@
   const code = NG.codeFromHash() || NG.genCode();
   try { history.replaceState(null, '', '#' + code.toLowerCase()); } catch {}
   const room = new NG.Room(GAME, code);
-  const fresh = () => ({ phase: 'lobby', gid: 0, cands: [], endAt: 0, order: [], col: [], losers: [], reason: '' });
+  const fresh = () => ({ phase: 'lobby', gid: 0, startAt: 0, cands: [], endAt: 0, order: [], col: [], losers: [], reason: '' });
   let state = fresh(), press = {}, myPress = 0, lastKey = '', ended = 0;
   const me = () => NG.me.uid;
   const arr = (x) => Array.isArray(x) ? x.filter(v => v != null) : Object.values(x || {}).filter(v => v != null);
@@ -118,7 +119,8 @@
     const gid = NG.now() % 100000000;
     room.ref.child('press').remove().catch(() => {});
     myPress = 0;
-    room.pushState({ ...fresh(), gid, cands: room.active().map(p => p.id), endAt: NG.now() + LIMIT, phase: 'play' });
+    const startAt = NG.now() + 3000;   // 3·2·1 카운트다운 뒤 시작 (모두 서버 시각 기준)
+    room.pushState({ ...fresh(), gid, cands: room.active().map(p => p.id), startAt, endAt: startAt + LIMIT, phase: 'play' });
   }
   function finish(st, losers, reason, gs) {
     room.pushState({ ...st, phase: 'end', losers, reason, col: reason === 'collide' ? losers : [], order: gs.filter(g => g.ids.length === 1).map(g => g.ids[0]) });
@@ -141,11 +143,12 @@
     if (now > st.endAt) return finish(st, rest, 'timeout', gs);
   }
   room.setHostLoop(() => check());
-  setInterval(() => { check(); tick(); }, 160);
+  const cdLeft = () => state.phase === 'play' && state.startAt ? Math.max(0, Math.ceil((state.startAt - NG.now()) / 1000)) : 0;
+  setInterval(() => { check(); if (state.phase === 'play') render(); else tick(); }, 160);
 
   // ───── 누르기
   function tap() {
-    if (state.phase !== 'play' || myPress || !cands().includes(me())) return;
+    if (state.phase !== 'play' || myPress || !cands().includes(me()) || cdLeft() > 0) return;
     myPress = NG.now(); render(true);
     room.ref.child(`press/${state.gid}/${me()}`).set(myPress).catch(() => { myPress = 0; render(true); });
   }
@@ -162,7 +165,7 @@
   }
   function render(force) {
     const st = state, ph = st.phase;
-    const key = [ph, st.gid, !!myPress, pressedCount(), room.playerList().map(p => p.id).join(','), room.isHost, NG.ui].join('|');
+    const key = [ph, st.gid, cdLeft(), !!myPress, pressedCount(), room.playerList().map(p => p.id).join(','), room.isHost, NG.ui].join('|');
     if (!force && key === lastKey) { tick(); return; }
     lastKey = key;
     const view = $('view'), acts = $('acts'); view.innerHTML = ''; acts.innerHTML = '';
@@ -181,6 +184,13 @@
       } else acts.appendChild(NG.el('div', 'msg2', room.active().length >= MIN ? t('waitHost') : t('need', MIN)));
     }
 
+    else if (ph === 'play' && cdLeft() > 0) {   // 시작 카운트다운: 버튼 잠금
+      const n = cdLeft();
+      view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="q">${t('getReady')}</div><div class="cdn">${n}</div><div class="sub">${t('playSub')}</div></div>`);
+      const z = NG.el('div', 'zone'); const b = NG.el('button', 'tapbtn pxb'); b.disabled = true;
+      b.innerHTML = `<span>${t('next')}</span><b>1</b><span style="font-size:12px">${t('getReady')}</span>`; z.appendChild(b); view.appendChild(z);
+      acts.appendChild(NG.el('div', 'msg2', cands().includes(me()) ? t('getReady') : t('watching')));
+    }
     else if (ph === 'play') {
       const inGame = cands().includes(me()), left = Math.max(0, st.endAt - NG.now());
       view.insertAdjacentHTML('beforeend', `<div class="card qcard"><div class="q">${t('playTitle')}</div><div class="tbar${left <= 5000 ? ' hot' : ''}"><i id="tbarFill" style="width:${left / LIMIT * 100}%"></i></div><div class="lbl"><span id="secs">${t('secLeft', Math.ceil(left / 1000))}</span> · ${pressedCount()} / ${cands().length}</div><div class="sub">${t('playSub')}</div></div>`);

@@ -28,7 +28,7 @@
   .tbar { width: 100%; height: 8px; background: var(--ink); position: relative; }
   .tbar i { position: absolute; inset: 0 auto 0 0; background: var(--mint); transition: width 1s linear; }
   .tbar.hot i { background: var(--pink); }
-  .ansrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; padding: 3px 3px 0; }
+  .ansrow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; padding: 3px 3px 0; }
   .ansrow button, .ansrow .tal { padding: 8px 4px; font-size: 13px; min-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; margin: 0; }
   .ansrow .tal { background: var(--panel2); font-weight: 700; }
   .ansrow b { font-size: 16px; }
@@ -69,6 +69,43 @@
   .chatc { padding: 12px; }
   .chatc h3 { margin-bottom: 8px; }
   .chatc .log { height: 150px; flex: none; }
+  .chatc form { display: none; }
+  /* 질문 기록 */
+  .qh { padding: 12px; }
+  .qh summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 700; min-height: 28px; }
+  .qh summary::-webkit-details-marker { display: none; }
+  .qh summary::after { content: '▼'; margin-left: auto; font-size: 10px; } .qh[open] summary::after { content: '▲'; }
+  .qh summary b { color: var(--yellow); }
+  .qtabs { display: flex; gap: 8px; margin: 8px 0; padding: 0 3px; }
+  .qtabs button { flex: 1; min-height: 34px; padding: 4px 8px; font-size: 12px; margin: 0; }
+  .qtabs button.on { background: var(--yellow); color: #1a1426; }
+  .qlist { display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow-y: auto; padding: 3px 4px; font-size: 12px; }
+  .qi { background: var(--panel2); padding: 5px 8px; line-height: 1.5; }
+  .qi.mine { box-shadow: inset 3px 0 0 var(--purple); }
+  .qi .who { color: var(--purple); font-weight: 700; margin-right: 4px; }
+  .qi .res { display: block; font-size: 11px; color: var(--muted); }
+  .qi .res .y { color: var(--mint); } .qi .res .n { color: var(--pink); }
+  .qempty { font-size: 12px; color: var(--muted); padding: 6px 4px; }
+  /* 질문 팝업 */
+  .modal { position: fixed; inset: 0; z-index: 50; background: rgba(10,8,18,.72); display: flex; align-items: flex-end; justify-content: center; padding: 15px 15px calc(15px + env(safe-area-inset-bottom)); }
+  .modal.hidden { display: none; }
+  .mbox { width: 100%; max-width: 480px; padding: 16px; display: flex; flex-direction: column; gap: 12px; animation: stepin .2s steps(3); }
+  .mbox h3 { font-size: 15px; color: var(--yellow); margin: 0; }
+  .mbox .tip { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .mbox .btns2 { display: grid; grid-template-columns: 1fr 2fr; gap: 12px; padding: 0 3px 3px; }
+  .mbox .btns2 button { margin: 0; }
+  /* PC: 오른쪽에 질문 기록 + 채팅을 따로 고정 */
+  @media (min-width: 761px) {
+    .modal { align-items: center; }
+    .col { max-width: 1060px; padding-right: 393px; }
+    .rside { position: fixed; top: 74px; bottom: 16px; width: 360px; right: max(15px, calc((100vw - 1060px) / 2 + 15px)); display: flex; flex-direction: column; gap: 16px; z-index: 7; }
+    .rside .qh { flex: none; } .rside .qlist { max-height: 26vh; }
+    .rside .chatc { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .rside .chatc .log { flex: 1; height: auto; min-height: 0; }
+    .rside .chatc form { display: flex; gap: 9px; margin-top: 10px; padding: 0 3px 3px; }
+    .acts.chatonly .row { display: none; }
+  }
+  @media (max-width: 760px) { .rside { display: flex; flex-direction: column; gap: 18px; width: 100%; max-width: 560px; margin: 0 auto; padding: 0 15px 14px; } }
   .big-ic { animation: bob 1s steps(2) infinite; }
   .acts { position: sticky; bottom: 0; z-index: 5; background: var(--bg); padding-top: 10px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
   #btns { display: flex; gap: 12px; padding: 0 3px; }
@@ -93,12 +130,23 @@
 <div class="col wrap">
   <div id="view"></div>
   <div id="stat"></div>
-  <div class="card chatc"><h3><i data-ic="chat" data-size="14"></i><span data-t="chatLbl"></span></h3><div class="log" id="log"></div></div>
 </div>
+<aside class="rside">
+  <details class="card qh hidden" id="qh"><summary><i data-ic="search" data-size="14"></i><span data-t="qhLbl"></span> <b id="qhN"></b></summary>
+    <div class="qtabs"><button class="on" id="qtMine" data-t="qhMine"></button><button class="btn-ghost" id="qtAll" data-t="qhAll"></button></div>
+    <div class="qlist" id="qlist"></div></details>
+  <div class="card chatc"><h3><i data-ic="chat" data-size="14"></i><span data-t="chatLbl"></span></h3><div class="log" id="log"></div>
+    <form class="row" id="form2"><input id="inp2" maxlength="40" autocomplete="off" enterkeyhint="send"><button class="btn-sub" type="submit" data-t="sendBtn"></button></form></div>
+</aside>
 <div class="col acts" id="acts">
   <div id="btns"></div>
   <form class="row" id="form"><input id="inp" maxlength="60" autocomplete="off" enterkeyhint="send"><button class="btn-sub" id="sendBtn" type="submit"></button></form>
 </div>
+<div class="modal hidden" id="askModal"><div class="card mbox">
+  <h3 data-t="askTitle"></h3><div class="tip" data-t="askTip"></div>
+  <div class="row"><input id="askInp" maxlength="60" autocomplete="off" enterkeyhint="send"></div>
+  <div class="btns2"><button class="btn-ghost" id="askCancel" data-t="cancel"></button><button class="btn-yellow" id="askSend" data-t="askSend"></button></div>
+</div></div>
 <canvas id="confetti"></canvas>
 
 <script src="common.js"></script>
@@ -107,22 +155,22 @@
 (() => {
   if (!NG.requireLogin()) return;
   NG.addT({
-    ko: { gameName: '잉규게임', chatLbl: '채팅', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요. 노란 코드를 누르면 복사돼요.`,
+    ko: { qhLbl: '질문 기록', qhMine: '내 질문', qhAll: '전체', qhEmpty: '아직 질문이 없어요', askOpen: '질문하기', askTitle: '질문하기', askTip: '예 / 아니오로 답할 수 있는 질문을 하나 써 주세요.', askSend: '질문 보내기', gameName: '잉규게임', chatLbl: '채팅', waitTitle: '친구를 기다리는 중…', waitText: (c) => `친구에게 방 코드 「${c}」를 알려 주세요. 노란 코드를 누르면 복사돼요.`,
       catLbl: '카테고리', catPick: '카테고리를 골라 주세요', catCustom: '직접 입력', catSet: '정하기', catNone: '방장이 카테고리를 고르는 중…', catIs: (c) => `카테고리: ${c}`,
       need: (n) => `${n}명부터 시작할 수 있어요`, needCat: '카테고리를 먼저 골라 주세요', waitHost: '방장이 시작하기를 기다리는 중…', toSet: '주제어 정하러 가기',
       setTitle: '주제어 정하기', setFor: (n) => `<b>${n}</b>님의 주제어를 정해 주세요`, setRule: '카테고리 안에서 골라 주세요. 게임이 시작되기 전까지 고칠 수 있어요.', wordPh: '주제어 (20자까지)', save: '저장', edit: '수정',
       savedAs: (w) => `저장됨: 「${w}」`, notSaved: '아직 저장하지 않았어요', stDone: '입력 완료', stTyping: '입력 중…', confirmStart: '확정하고 시작', waitAll: (a, b) => `모두 입력하면 시작할 수 있어요 (${a}/${b})`, waitConfirm: '방장이 확정하기를 기다리는 중…', watching: '구경 중이에요. 다음 판부터 참여해요!',
-      turnOf: (n) => `<b>${n}</b>님 차례`, myTurn: '<b>내 차례!</b>', askWait: (n) => `${n}님의 질문을 기다리는 중…`, askMe: '질문을 하나 입력하세요. 바로 정답에 도전해도 돼요.', qBy: (n) => `${n}님의 질문`,
+      turnOf: (n) => `<b>${n}</b>님 차례`, myTurn: '<b>내 차례!</b>', askWait: (n) => `${n}님의 질문을 기다리는 중…`, askMe: '아래 「질문하기」를 눌러 질문해요. 바로 정답에 도전해도 돼요.', qBy: (n) => `${n}님의 질문`,
       yes: '예', no: '아니오', mid: '애매해', askPh: '질문 입력 (1개만)', chatPh: '채팅', guessPh: '정답 (띄어쓰기 없이)', askBtn: '질문', sendBtn: '전송', goBtn: '도전!',
       guessBtn: '정답 도전', cancel: '취소', passBtn: '넘기기', hidden: '???', rankTag: (n) => `${n}등`, youTag: '나', goneTag: '나감',
       evOk: (n, w) => `🎉 ${n}님 정답! 주제어는 「${w}」`, evNo: (n, g) => `❌ ${n}님 오답: 「${g}」`, evPass: (n) => `${n}님이 차례를 넘겼어요`, evTime: (n) => `⏱ ${n}님 시간 초과`, evGone: (n) => `${n}님이 나가서 차례를 넘겨요`, evReset: '인원이 바뀌어서 주제어를 다시 정해요', evStart: '주제어 확정! 게임을 시작해요',
       endTitle: '게임 종료', endSub: '맞힌 순서대로 순위예요', notSolved: '못 맞힘', lastTag: '꼴찌', givenBy: (n) => `정해 준 사람: ${n}`, againBtn: '한 판 더', toLobby: '로비로', players: (n) => `참가자 ${n}명`, dupQ: '질문은 한 차례에 하나만 할 수 있어요' },
-    ja: { gameName: 'インギュゲーム', chatLbl: 'チャット', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。黄色いコードを押すとコピーできます。`,
+    ja: { qhLbl: '質問の記録', qhMine: '自分の質問', qhAll: '全部', qhEmpty: 'まだ質問がありません', askOpen: '質問する', askTitle: '質問する', askTip: '「はい／いいえ」で答えられる質問を1つ書いてください。', askSend: '質問を送る', gameName: 'インギュゲーム', chatLbl: 'チャット', waitTitle: '友達を待っています…', waitText: (c) => `友達に部屋コード「${c}」を教えてください。黄色いコードを押すとコピーできます。`,
       catLbl: 'カテゴリー', catPick: 'カテゴリーを選んでください', catCustom: '自由入力', catSet: '決定', catNone: 'ホストがカテゴリーを選んでいます…', catIs: (c) => `カテゴリー: ${c}`,
       need: (n) => `${n}人から始められます`, needCat: '先にカテゴリーを選んでください', waitHost: 'ホストの開始を待っています…', toSet: 'お題を決めに行く',
       setTitle: 'お題を決める', setFor: (n) => `<b>${n}</b>さんのお題を決めてください`, setRule: 'カテゴリーの中から選んでください。ゲームが始まるまで直せます。', wordPh: 'お題（20文字まで）', save: '保存', edit: '修正',
       savedAs: (w) => `保存済み:「${w}」`, notSaved: 'まだ保存していません', stDone: '入力完了', stTyping: '入力中…', confirmStart: '確定してスタート', waitAll: (a, b) => `全員が入力すると始められます (${a}/${b})`, waitConfirm: 'ホストの確定を待っています…', watching: '見学中です。次のゲームから参加します！',
-      turnOf: (n) => `<b>${n}</b>さんの番`, myTurn: '<b>自分の番！</b>', askWait: (n) => `${n}さんの質問を待っています…`, askMe: '質問を1つ入力してください。すぐ答えに挑戦してもOK。', qBy: (n) => `${n}さんの質問`,
+      turnOf: (n) => `<b>${n}</b>さんの番`, myTurn: '<b>自分の番！</b>', askWait: (n) => `${n}さんの質問を待っています…`, askMe: '下の「質問する」を押して質問します。すぐ答えに挑戦してもOK。', qBy: (n) => `${n}さんの質問`,
       yes: 'はい', no: 'いいえ', mid: '微妙', askPh: '質問を入力（1つだけ）', chatPh: 'チャット', guessPh: '答え（スペースなし）', askBtn: '質問', sendBtn: '送信', goBtn: '挑戦！',
       guessBtn: '答えに挑戦', cancel: 'キャンセル', passBtn: 'パス', hidden: '???', rankTag: (n) => `${n}位`, youTag: '自分', goneTag: '退出',
       evOk: (n, w) => `🎉 ${n}さん正解！お題は「${w}」`, evNo: (n, g) => `❌ ${n}さん不正解:「${g}」`, evPass: (n) => `${n}さんがパスしました`, evTime: (n) => `⏱ ${n}さん時間切れ`, evGone: (n) => `${n}さんが退出したので次へ進みます`, evReset: '人数が変わったので、お題を決め直します', evStart: 'お題確定！ゲームスタート',
@@ -142,7 +190,7 @@
   const fresh = () => ({ phase: 'lobby', gid: 0, cat: '', order: [], w: {}, turn: '', turnNo: 0, timeLeft: 0, done: [], ev: { n: 0 } });
   let state = fresh();
   // 방 안의 보조 경로: words/{gid}/{대상} 입력 중인 주제어 · turnq 이번 차례 질문 · ans/{차례키}/{uid} 대답 · act 차례인 사람의 정답 도전/넘기기
-  let words = {}, turnq = null, ans = {}, mode = 'chat', lastEv = 0, keys = {}, lastTurnKey = '';
+  let qlog = {}, qhTab = 'mine', words = {}, turnq = null, ans = {}, mode = 'chat', lastEv = 0, keys = {}, lastTurnKey = '';
   const me = () => NG.me.uid;
   const order = () => arr(state.order), done = () => arr(state.done);
   const tkey = (st = state) => `${st.gid}_${st.turnNo}`;
@@ -169,7 +217,7 @@
     if (!room.isHost) return;
     const ids = room.active().map(p => p.id); if (ids.length < MIN || !state.cat) return;
     for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
-    for (const p of ['words', 'turnq', 'ans', 'act']) room.ref.child(p).remove().catch(() => {});
+    for (const p of ['words', 'turnq', 'ans', 'act', 'qlog']) room.ref.child(p).remove().catch(() => {});
     push({ ...fresh(), lang: state.lang || NG.ui, langSet: true, cat: state.cat, phase: 'set', gid: Date.now() % 100000000, order: ids }, ev);
   }
   function startPlay() {
@@ -218,13 +266,47 @@
   function submit() {
     const inp = $('inp'); let v = inp.value.trim(); if (!v) return;
     const m = curMode();
-    if (m === 'ask') { room.ref.child('turnq').set({ key: tkey(), by: me(), text: v.slice(0, 60) }).catch(() => {}); }
-    else if (m === 'guess') { v = v.replace(/\s+/g, ''); if (!v) return; room.ref.child('act').set({ key: tkey(), by: me(), type: 'guess', text: v.slice(0, 30), at: Date.now() }).catch(() => {}); mode = 'chat'; }
+    if (m === 'guess') { v = v.replace(/\s+/g, ''); if (!v) return; room.ref.child('act').set({ key: tkey(), by: me(), type: 'guess', text: v.slice(0, 30), at: Date.now() }).catch(() => {}); mode = 'chat'; }
     else room.sendChat(v);
     inp.value = ''; render();
   }
-  const curMode = () => !isMyTurn() ? 'chat' : mode === 'guess' ? 'guess' : (curQ() ? 'chat' : 'ask');
+  const curMode = () => isMyTurn() && mode === 'guess' ? 'guess' : 'chat';
   $('form').addEventListener('submit', (e) => { e.preventDefault(); submit(); });
+  $('form2').addEventListener('submit', (e) => { e.preventDefault(); const i = $('inp2'), v = i.value.trim(); if (v) room.sendChat(v); i.value = ''; });
+  $('inp2').placeholder = t('chatPh');
+  // 질문 팝업: 내 차례 + 아직 질문 전일 때만
+  const openAsk = () => { if (!isMyTurn() || curQ()) return; $('askModal').classList.remove('hidden'); $('askInp').placeholder = t('askPh'); setTimeout(() => $('askInp').focus(), 50); };
+  const closeAsk = () => { $('askModal').classList.add('hidden'); $('askInp').blur(); };
+  function sendAsk() {
+    const v = $('askInp').value.trim().slice(0, 60); if (!v || !isMyTurn() || curQ()) return;
+    room.ref.child('turnq').set({ key: tkey(), by: me(), text: v }).catch(() => {});
+    room.ref.child(`qlog/${state.gid}`).push({ key: tkey(), by: me(), text: v, at: Date.now() }).catch(() => {});
+    $('askInp').value = ''; closeAsk();
+  }
+  $('askSend').addEventListener('click', sendAsk); $('askCancel').addEventListener('click', closeAsk);
+  $('askInp').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendAsk(); } });
+  $('askModal').addEventListener('click', (e) => { if (e.target === $('askModal')) closeAsk(); });
+  $('qtMine').addEventListener('click', () => { qhTab = 'mine'; keys.qlist = ''; render(); });
+  $('qtAll').addEventListener('click', () => { qhTab = 'all'; keys.qlist = ''; render(); });
+  try { if (matchMedia('(min-width: 761px)').matches) $('qh').open = true; } catch {}
+  // 질문 기록 (이번 판 질문 + 예/아니오 개수)
+  function renderQh() {
+    const show = state.phase === 'play' || state.phase === 'end';
+    $('qh').classList.toggle('hidden', !show); if (!show) { keys.qlist = ''; return; }
+    const all = Object.values(qlog[state.gid] || {}).sort((a, b) => (a.at || 0) - (b.at || 0));
+    const list = qhTab === 'mine' ? all.filter(q => q.by === me()) : all;
+    const cntOf = (k) => { const c = { y: 0, n: 0 }; for (const v of Object.values(ans[k] || {})) if (c[v] != null) c[v]++; return c; };
+    $('qhN').textContent = all.filter(q => q.by === me()).length || '';
+    $('qtMine').className = qhTab === 'mine' ? 'on' : 'btn-ghost'; $('qtAll').className = qhTab === 'all' ? 'on' : 'btn-ghost';
+    draw('qlist', [state.gid, qhTab, NG.ui, JSON.stringify(list.map(q => [q.key, q.by, cntOf(q.key)]))].join('|'), (el) => {
+      if (!list.length) { el.appendChild(NG.el('div', 'qempty', t('qhEmpty'))); return; }
+      for (const q of list.slice().reverse()) {
+        const c = cntOf(q.key), d = NG.el('div', 'qi' + (q.by === me() ? ' mine' : ''));
+        d.innerHTML = `${qhTab === 'all' ? `<span class="who">${esc(room.nameOf(q.by))}</span>` : ''}${esc(q.text)}<span class="res"><span class="y">${t('yes')} ${c.y}</span> · <span class="n">${t('no')} ${c.n}</span></span>`;
+        el.appendChild(d);
+      }
+    });
+  }
   $('inp').addEventListener('input', () => { if (curMode() === 'guess') { const el = $('inp'), v = el.value.replace(/\s+/g, ''); if (v !== el.value) el.value = v; } });
 
   // ───── 화면 (구역별로 내용이 바뀔 때만 다시 그림 → 입력 중인 글자가 지워지지 않음)
@@ -236,7 +318,9 @@
     const m = curMode(); const inp = $('inp');
     inp.placeholder = t(m === 'ask' ? 'askPh' : m === 'guess' ? 'guessPh' : 'chatPh'); inp.maxLength = m === 'ask' ? 60 : m === 'guess' ? 30 : 40;
     $('sendBtn').textContent = t(m === 'ask' ? 'askBtn' : m === 'guess' ? 'goBtn' : 'sendBtn'); $('sendBtn').className = m === 'guess' ? 'btn-main' : m === 'ask' ? 'btn-yellow' : 'btn-sub';
-    $('acts').classList.toggle('guess', m === 'guess');
+    $('acts').classList.toggle('guess', m === 'guess'); $('acts').classList.toggle('chatonly', m !== 'guess');
+    if (curQ() || !isMyTurn()) closeAsk();
+    renderQh();
     const pk = list.map(p => p.id).join(',');
 
     if (ph === 'lobby') {
@@ -279,14 +363,14 @@
     }
 
     else if (ph === 'play') {
-      const q = curQ(), mt = isMyTurn(), a = ans[tkey()] || {}, cnt = { y: 0, n: 0, m: 0 }; for (const v of Object.values(a)) if (cnt[v] != null) cnt[v]++;
+      const q = curQ(), mt = isMyTurn(), a = ans[tkey()] || {}, cnt = { y: 0, n: 0 }; for (const v of Object.values(a)) if (cnt[v] != null) cnt[v]++;
       draw('pin', ['p', tkey(), q ? q.text : '', JSON.stringify(a), mt].join('|'), (el) => {
         const c = NG.el('div', 'card qcard');
         c.innerHTML = `<div class="lbl">${person(st.turn, 20)} ${mt ? t('myTurn') : t('turnOf', esc(room.nameOf(st.turn)))} · <span id="tleft">${NG.fmtTime(st.timeLeft)}</span></div><div class="tbar" id="tbar"><i id="tfill" style="width:${Math.max(0, (st.timeLeft - 1) / (TURN - 1) * 100)}%"></i></div>`
           + (q ? `<div class="q">${esc(q.text)}</div>` : `<div class="q wait">${mt ? t('askMe') : esc(t('askWait', room.nameOf(st.turn)))}</div>`);
         if (q) {
           const r = NG.el('div', 'ansrow');
-          for (const [k, lb] of [['y', 'yes'], ['n', 'no'], ['m', 'mid']]) {
+          for (const [k, lb] of [['y', 'yes'], ['n', 'no']]) {
             if (mt) { const x = NG.el('div', 'tal pxb ' + k); x.innerHTML = `<span>${t(lb)}</span><b>${cnt[k]}</b>`; r.appendChild(x); }
             else { const b = NG.el('button', k + (a[me()] === k ? ' on' : '')); b.innerHTML = `<span>${t(lb)}</span><b>${cnt[k]}</b>`; b.addEventListener('click', () => room.ref.child(`ans/${tkey()}/${me()}`).set(k).catch(() => {})); r.appendChild(b); }
           }
@@ -306,8 +390,9 @@
         }
         el.appendChild(g);
       });
-      draw('btns', ['p', tkey(), mt, mode].join('|'), (el) => {
+      draw('btns', ['p', tkey(), mt, mode, !!curQ(), NG.ui].join('|'), (el) => {
         if (!mt) return;
+        if (!curQ() && mode !== 'guess') { const b0 = NG.el('button', 'btn-yellow', t('askOpen')); b0.addEventListener('click', openAsk); el.appendChild(b0); }
         const b1 = NG.el('button', mode === 'guess' ? 'btn-ghost' : 'btn-main', t(mode === 'guess' ? 'cancel' : 'guessBtn'));
         b1.addEventListener('click', () => { mode = mode === 'guess' ? 'chat' : 'guess'; $('inp').value = ''; render(); $('inp').focus(); });
         const b2 = NG.el('button', 'btn-ghost', t('passBtn')); b2.addEventListener('click', () => room.ref.child('act').set({ key: tkey(), by: me(), type: 'pass', at: Date.now() }).catch(() => {}));
@@ -354,6 +439,7 @@
     room.listen(room.ref.child('words'), 'value', (s) => { words = s.val() || {}; render(); });
     room.listen(room.ref.child('turnq'), 'value', (s) => { turnq = s.val(); render(); });
     room.listen(room.ref.child('ans'), 'value', (s) => { ans = s.val() || {}; render(); });
+    room.listen(room.ref.child('qlog'), 'value', (s) => { qlog = s.val() || {}; render(); });
     room.listen(room.ref.child('act'), 'value', (s) => onAct(s.val()));
     render();
   });
