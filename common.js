@@ -69,6 +69,11 @@
       info: { time: { ko: '약 30초', ja: '約30秒' }, rules: {
         ko: ['5×5 칸에 1~25가 섞여 있어요.', '1부터 25까지 순서대로 최대한 빨리 터치!', '틀린 숫자를 누르면 0.5초가 더해져요.'],
         ja: ['5×5のマスに1〜25がバラバラに並んでいます。', '1から25まで順番にできるだけ早くタップ！', '違う数字を押すと0.5秒プラスされます。'] } } },
+    { id: 'dodge', type: 'solo',  page: 'dodge.html', icon: 'poop', bg: '#2e4a2a', min: 1, max: 1, name: { ko: '똥피하기', ja: 'うんち避け' },
+      desc: { ko: '하늘에서 떨어지는 똥을 피해 끝까지 버텨라!', ja: '空から落ちてくるうんちを避けて耐えろ！' }, rank: { field: 'time', label: { ko: '버틴 시간', ja: '生存時間' }, unit: { ko: '초', ja: '秒' } },
+      info: { time: { ko: '약 1분', ja: '約1分' }, rules: {
+        ko: ['화면 왼쪽/오른쪽을 누르고 있으면 그쪽으로 움직여요.', '떨어지는 똥에 한 번이라도 맞으면 끝!', '시간이 갈수록 빨라져요. 버틴 시간으로 랭킹에 올라가요.'],
+        ja: ['画面の左／右を押している間、その方向に動きます。', '落ちてくるうんちに1回でも当たったら終わり！', 'だんだん速くなります。生存時間でランキングに載ります。'] } } },
   ];
   NG.game = (id) => NG.GAMES.find(g => g.id === id);
 
@@ -229,7 +234,8 @@
     moon: ['....kkkk..', '..kkyyyk..', '.kyyykk...', '.kyyk.....', 'kyyyk.....', 'kyyyk.....', '.kyyk.....', '.kyyykk...', '..kkyyyk..', '....kkkk..'],
     sound: ['....kk....', '...kwk..k.', 'kkkwwk...k', 'kwwwwk.k.k', 'kwwwwk.k.k', 'kkkwwk...k', '...kwk..k.', '....kk....'],
     note: ['...kkkkkk.', '...kwwwwk.', '...kwkkwk.', '...kwk.kk.', '...kwk....', '.kkkwk....', 'kwwwwk....', 'kwwwk.....', '.kkk......'],
-    nunchi: ['................', '....kkkkkkkk....', '..kkqqffffffkk..', '.kqqffffffffgfk.', '.kqffffffffgggk.', 'kffffffffffgwgfk', 'kffkkfffkkfgggfk', 'kffkwfffkwffgffk', 'kffffffffffffffk', 'kfppffffffffppfk', '.kffffkfkfkfffk.', '.kfffffkfkffffk.', '..kffffffffffk..', '...kkffffffkk...', '.....kkkkkk.....', '................'],
+    nunchi: ['................', '....kkkkkkkk....', '..kkqqffffffkg..', '.kqqffffffffggg.', '.kqfffffffffgwg.', 'kfffffffffffgggk', 'kfffkkfffkkffgfk', 'kfffkwfffkwffffk', 'kffffffffffffffk', 'kfppfffffffppffk', '.kfffkfkfkffffk.', '.kffffkfkfffffk.', '..kffffffffffk..', '...kkffffffkk...', '.....kkkkkk.....', '................'],
+    poop: ['................', '.......k........', '......knk.......', '.....knnnk......', '....kknnnnkk....', '...knnnnnnnnk...', '...kbnnnnnnbk...', '..kkknnnnnnkkk..', '.knnnnnnnnnnnnk.', '.knnwknnnnwknnk.', 'knnnkknnnnkknnnk', 'knpnnnnkknnnnpnk', 'kbnnnnnnnnnnnnbk', '.kbbnnnnnnnnbbk.', '..kkkkkkkkkkkk..', '................'],
     grid: ['kkkkkkkkkkkkkkkk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kkkkkkkkkkkkkkkk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kkkkkkkkkkkkkkkk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kkkkkkkkkkkkkkkk'],
     who: ['.....kkkkkk.....', '.....kwkkwk.....', '.....kwwwkk.....', '.....kwwkwk.....', '.....kwwwwk.....', '.....kwwkwk.....', '.....kwwwwk.....', '..kkkkkkkkkkkk..', '.kvvvvkkkkvvvvk.', '.kvlvvvvvvvvvvk.', '.kvlvvvvvvvvvvk.', '.kvvvvvppvvvvvk.', '.kvvvvppppvvvvk.', '.kvvvvvppvvvvvk.', '.kddddddddddddk.', '..kkkkkkkkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>똥피하기 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; height: 100dvh; touch-action: none; overscroll-behavior: none; overflow: hidden; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top .ttl { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 520px; margin: 0 auto; padding: 12px 15px 16px; min-height: 0; }
+  .field { flex: 1; min-height: 0; position: relative; background: #1d2a44; --bc: var(--ink); --dc: var(--ink); --dp: 8px; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+  .hud { position: absolute; top: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 2; }
+  .hud .tm { font-size: 28px; font-weight: 700; color: #fff; text-shadow: 3px 3px 0 rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
+  .hud .tm small { font-size: 13px; margin-left: 2px; }
+  .hud .lv { font-size: 12px; background: var(--yellow); color: var(--ink); padding: 4px 8px; font-weight: 700; }
+  .ctl { position: absolute; bottom: 0; left: 0; right: 0; height: 26%; display: flex; pointer-events: none; z-index: 1; }
+  .ctl div { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; color: rgba(255,255,255,.25); font-size: 26px; font-weight: 700; }
+  .ctl div.on { background: rgba(255,255,255,.07); color: rgba(255,255,255,.6); }
+  .ov { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 20px; background: rgba(18,15,29,.78); }
+  .ov.hidden { display: none; }
+  .ov h2 { font-size: clamp(26px, 8vw, 40px); color: var(--yellow); text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
+  .ov p { font-size: 14px; line-height: 1.7; color: #fff; }
+  .ov .hint { font-size: 13px; color: var(--yellow); animation: blink 1s steps(2) infinite; }
+  .big-ic { animation: bob 1s steps(2) infinite; }
+  .cd { font-size: clamp(90px, 30vw, 150px); color: #fff; font-weight: 700; text-shadow: 6px 6px 0 var(--pink); animation: pop .3s steps(3); }
+  .bestline { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; } .bestline b { color: var(--yellow); }
+  .lbl { font-size: 12px; color: var(--muted); }
+  .big { font-size: clamp(56px, 17vw, 92px); font-weight: 700; color: var(--yellow); line-height: 1; text-shadow: 5px 5px 0 var(--pink); animation: pop .3s steps(3); font-variant-numeric: tabular-nums; }
+  .big small { font-size: .3em; color: var(--text); text-shadow: none; margin-left: 4px; }
+  .grade { font-size: 15px; color: var(--yellow); font-weight: 700; }
+  .newrec { background: var(--pink); color: #fff; font-size: 13px; font-weight: 700; padding: 5px 10px; animation: pulse .6s steps(2) infinite; }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 3px 3px 0; }
+  .acts button { font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .full { grid-column: 1 / -1; font-size: 18px; padding: 14px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <span class="ttl"><i data-ic="poop" data-size="16"></i><span data-t="gameName"></span></span>
+  <span class="grow"></span>
+  <span class="pill"><i data-ic="trophy" data-size="14"></i><span id="bestTxt">--</span></span>
+</div>
+<div class="wrap">
+  <div class="field pxb" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud hidden" id="hud"><span class="tm" id="tm">0.00<small>s</small></span><span class="lv pxb" id="lv"></span></div>
+    <div class="ctl" id="ctl"><div id="cl">◀</div><div id="cr">▶</div></div>
+    <div class="ov" id="ov"></div>
+  </div>
+  <div class="acts hidden" id="acts">
+    <button class="btn-main full" id="againBtn"><i data-ic="play" data-size="14"></i><span data-t="again2"></span></button>
+    <button class="btn-yellow" id="rankBtn"><i data-ic="trophy" data-size="16"></i><span data-t="seeRank"></span></button>
+    <button class="btn-ghost" id="homeBtn"><i data-ic="home" data-size="16"></i><span data-t="toLobby"></span></button>
+  </div>
+</div>
+<script src="common.js"></script>
+<script src="badges.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '똥피하기', again2: '다시 도전', seeRank: '랭킹 보기', toLobby: '로비로', tapStart: '화면을 터치해서 시작', lv: (n) => `LV ${n}`,
+      intro: '화면 <b>왼쪽 / 오른쪽</b>을 누르고 있으면 움직여요.<br>똥에 맞으면 끝!', keyHint: 'PC는 ← → 방향키', resLbl: '버틴 시간', newRec: '최고 기록 경신!', prevBest: (v) => `이전 최고 ${v}초`, myRank: (n) => `현재 랭킹 ${n}위`,
+      bestPill: (v) => `최고 ${v}초`, noBest: '첫 도전!', grade: (s) => s >= 60 ? '피하기의 신!' : s >= 30 ? '생존자!' : s >= 15 ? '꽤 잘 피해요' : s >= 3 ? '조금만 더!' : '출발하자마자…' },
+    ja: { gameName: 'うんち避け', again2: 'もう一回', seeRank: 'ランキング', toLobby: 'ロビーへ', tapStart: '画面をタップしてスタート', lv: (n) => `LV ${n}`,
+      intro: '画面の<b>左／右</b>を押している間、動きます。<br>うんちに当たったら終わり！', keyHint: 'PCは ← → キー', resLbl: '生存時間', newRec: '自己ベスト更新！', prevBest: (v) => `前回のベスト ${v}秒`, myRank: (n) => `現在ランキング${n}位`,
+      bestPill: (v) => `ベスト ${v}秒`, noBest: '初挑戦！', grade: (s) => s >= 60 ? '避けの神！' : s >= 30 ? 'サバイバー！' : s >= 15 ? 'なかなか上手' : s >= 3 ? 'もう少し！' : 'スタート直後…' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const GAME = 'dodge';
+  document.title = `${t('gameName')} · DIDI Games`;
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); NG.bindLogo(document);
+  NG.setPresence(GAME); NG.touchProfile(GAME);
+
+  // 픽셀 그림 → 이미지 (SVG 문자열 재사용)
+  const toImg = (html) => { const m = html.match(/<svg[\s\S]*<\/svg>/); const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m[0].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')); return img; };
+  const poopImg = toImg(NG.icon('poop', 64)), meImg = toImg(NG.avatarSVG(NG.me.av, 64));
+
+  let best = null, phase = 'intro', result = null;
+  const fmt = (v) => v.toFixed(2);
+  const setBest = () => { $('bestTxt').textContent = best != null ? t('bestPill', fmt(best)) : t('noBest'); };
+  setBest();
+  NG.myStats(GAME).then(s => { if (s && s.time != null) { best = s.time; setBest(); if (phase === 'intro') render(); } });
+
+  // 논리 좌표: 폭 W=360 고정, 높이는 화면 비율에 맞춤
+  const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+  let W = 360, H = 560, scale = 1;
+  function resize() {
+    const r = stage.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    scale = r.width / W; H = Math.max(360, r.height / scale);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0); ctx.imageSmoothingEnabled = false;
+    if (phase !== 'play') draw();
+  }
+  addEventListener('resize', resize);
+
+  const PS = 40, P_SPEED = 260;               // 캐릭터 크기·속도(px/s)
+  let px = W / 2, poops = [], t0 = 0, last = 0, spawnAcc = 0, raf = 0, moved = false, dirL = false, dirR = false, keyL = false, keyR = false, cdTimer = null;
+  const elapsed = () => (performance.now() - t0) / 1000;
+  const level = (s) => 1 + Math.floor(s / 10);
+  function spawn(s) {
+    const size = 28 + Math.random() * 8;
+    poops.push({ x: size / 2 + Math.random() * (W - size), y: -size, s: size, v: 150 + s * 6 + Math.random() * 90 });
+  }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#2a3b5c'; for (let y = 0; y < H; y += 24) for (let x = (y / 24 % 2) * 24; x < W; x += 48) ctx.fillRect(x, y, 24, 24);
+    ctx.fillStyle = '#3d6b3a'; ctx.fillRect(0, H - 14, W, 14); ctx.fillStyle = '#2e4a2a'; ctx.fillRect(0, H - 6, W, 6);
+    for (const p of poops) ctx.drawImage(poopImg, p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
+    ctx.drawImage(meImg, px - PS / 2, H - 14 - PS, PS, PS);
+  }
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const s = elapsed();
+    const L = dirL || keyL, R = dirR || keyR;
+    if (L !== R) { moved = true; px += (R ? 1 : -1) * P_SPEED * dt; px = Math.max(PS / 2, Math.min(W - PS / 2, px)); }
+    spawnAcc += dt * (1.6 + s * 0.12); while (spawnAcc >= 1) { spawnAcc--; spawn(s); }
+    const py = H - 14 - PS / 2;
+    for (const p of poops) {
+      p.y += p.v * dt;
+      if (Math.abs(p.x - px) < (p.s * 0.36 + PS * 0.3) && Math.abs(p.y - py) < (p.s * 0.36 + PS * 0.36)) { draw(); return finish(s); }
+    }
+    poops = poops.filter(p => p.y < H + 40);
+    $('tm').innerHTML = `${fmt(s)}<small>s</small>`; $('lv').textContent = t('lv', level(s));
+    if (!moved && s >= 10 && !stillGot) { stillGot = true; }
+    draw(); raf = requestAnimationFrame(frame);
+  }
+  let stillGot = false;
+  function render() {
+    const ov = $('ov');
+    $('hud').classList.toggle('hidden', phase !== 'play');
+    $('acts').classList.toggle('hidden', phase !== 'result');
+    $('ctl').style.display = phase === 'play' || phase === 'cd' ? '' : 'none';
+    ov.classList.toggle('hidden', phase === 'play');
+    if (phase === 'intro') {
+      ov.innerHTML = `<div class="big-ic">${NG.icon('poop', 64)}</div><h2>${t('gameName')}</h2><p>${t('intro')}</p>
+        ${best != null ? `<div class="bestline">${NG.icon('trophy', 14)}<b>${t('bestPill', fmt(best))}</b></div>` : ''}<div class="hint">▶ ${t('tapStart')}</div>
+        <p style="font-size:11px;opacity:.6">${matchMedia('(hover: hover)').matches ? t('keyHint') : ''}</p>`;
+    } else if (phase === 'result') {
+      const r = result;
+      ov.innerHTML = `<div class="lbl">${t('resLbl')}</div><div class="big">${fmt(r.time)}<small>s</small></div><div class="grade">${t('grade', r.time)}</div>
+        <div id="recLine" style="min-height:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center"></div>`;
+    }
+  }
+  function countdown() {
+    phase = 'cd'; poops = []; px = W / 2; render(); draw(); let n = 3;
+    const show = () => { $('ov').innerHTML = `<div class="cd">${n}</div>`; };
+    show(); clearInterval(cdTimer);
+    cdTimer = setInterval(() => { n--; if (n > 0) show(); else { clearInterval(cdTimer); start(); } }, 700);
+  }
+  function start() {
+    poops = []; px = W / 2; moved = false; stillGot = false; spawnAcc = 0.6;
+    phase = 'play'; render(); t0 = last = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+  }
+  function finish(s) {
+    cancelAnimationFrame(raf); if (navigator.vibrate) navigator.vibrate(150);
+    const time = Math.round(s * 100) / 100;
+    result = { time }; phase = 'result'; dirL = dirR = false; render();
+    if (NG.Badge) NG.Badge.run({ p_plays: 1, p_30: time >= 30, p_60: time >= 60, p_fast: time < 3, p_still: stillGot });
+    const prevBest = best;
+    NG.recordTop(GAME, 'time', time).then(async (res) => {
+      const line = $('recLine'); if (!line) return;
+      const prev = res && res.prev && res.prev.time != null ? res.prev.time : prevBest;
+      if (prev == null || time > prev) { line.insertAdjacentHTML('beforeend', `<span class="newrec">★ ${t('newRec')}</span>`); if (prev != null) line.insertAdjacentHTML('beforeend', `<span class="lbl">${t('prevBest', fmt(prev))}</span>`); NG.confetti(); }
+      best = prev == null ? time : Math.max(prev, time); setBest();
+      try { const rows = await NG.leaderboard(GAME, 'time', 200, false); const i = rows.findIndex(r => r.uid === NG.me.uid); if (i >= 0) line.insertAdjacentHTML('beforeend', `<span class="lbl">${NG.icon('trophy', 12)} ${t('myRank', i + 1)}</span>`); } catch {}
+    });
+  }
+  // 터치: 화면 왼쪽/오른쪽 절반을 누르고 있는 동안 이동 (여러 손가락 지원)
+  const touches = new Map();
+  const updDir = () => { const r = stage.getBoundingClientRect(); dirL = dirR = false; for (const x of touches.values()) { if (x < r.left + r.width / 2) dirL = true; else dirR = true; } $('cl').classList.toggle('on', dirL || keyL); $('cr').classList.toggle('on', dirR || keyR); };
+  stage.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (phase === 'intro') { countdown(); return; }
+    if (phase !== 'play' && phase !== 'cd') return;
+    stage.setPointerCapture?.(e.pointerId); touches.set(e.pointerId, e.clientX); updDir();
+  });
+  stage.addEventListener('pointermove', (e) => { if (touches.has(e.pointerId)) { touches.set(e.pointerId, e.clientX); updDir(); } });
+  const up = (e) => { touches.delete(e.pointerId); updDir(); };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => stage.addEventListener(ev, up));
+  stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  addEventListener('keydown', (e) => {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keyL = true; updDir(); e.preventDefault(); }
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') { keyR = true; updDir(); e.preventDefault(); }
+    else if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); if (phase === 'intro' || phase === 'result') countdown(); }
+  });
+  addEventListener('keyup', (e) => { if (e.code === 'ArrowLeft' || e.code === 'KeyA') keyL = false; if (e.code === 'ArrowRight' || e.code === 'KeyD') keyR = false; updDir(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') finish(elapsed()); });
+  $('againBtn').addEventListener('click', countdown);
+  $('rankBtn').addEventListener('click', () => { location.href = 'index.html?tab=rank&g=' + GAME; });
+  $('homeBtn').addEventListener('click', () => { location.href = 'index.html'; });
+  render(); poopImg.onload = meImg.onload = () => { if (phase !== 'play') draw(); }; resize();
+})();
+</script>
+</body>
+</html>
