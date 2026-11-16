@@ -30,6 +30,7 @@
   - 경로: `nact/{gid_day}/{uid}`={t,at}, `vote/{gid_day}/{uid}`, `mchat`. state에 roles·seen·info·pub·contact·used. **역할은 화면에서만 가림(DB에는 있음).** 개발용: 주소에 `?fast`를 붙이면 모든 시간이 1/10.
 - `badges.js` — **뱃지(업적 45개 + 누구 누구 칭호)**. 모든 페이지에서 common.js 다음에 불러옴. `NG.Badge`: `run({카운터: 숫자|true})`(게임에서 호출 → 카운터 증가 → 조건 판정 → '새 뱃지 획득!' 알림), `addTitle(qi, ko, ja)`, `open()`(보유 뱃지 화면: 대표 뱃지 3칸, 탭 전체/게임별/공통, 얻은 것은 색·못 얻은 것은 실루엣+진행도, 누르면 상세·대표 설정), `mini(uid, name, av)`(친구의 캐릭터+대표 뱃지 3개 — 로비 접속 중 목록에서 사람을 누르면), `art(id, size, locked)`.
   - 뱃지 정의는 파일 안 `LIST`(한 줄에 하나: id, 탭, 카운터 키 또는 계산 함수, 필요 값, 숨김, 이름 ko/ja, 조건 ko/ja). 그림은 `D.art[id]`(16×16, 없으면 로고). 그림 원본·미리보기 스크립트는 작업 공간 `/home/claude/art/badges_art.py`(세션이 바뀌면 없음 → badges.js 안의 art가 원본).
+  - 뱃지 화면의 탭: 폰은 옆으로 밀어 넘김, PC(마우스)는 여러 줄로 접히고 두 줄을 넘으면 '더 보기/접기' 버튼(`fitTabs`). 고른 탭이 접힌 줄에 있으면 자동으로 펼침.
   - 숨김 뱃지(조건 ???): r_slow, r_guess, a_one, i_pass5, g_dawn. 단계는 메달 색이 아니라 이름·그림이 다른 별개 뱃지(예: 에임 55 명사수 / 70 인간 터렛 / 80 에임핵 의심).
   - 카운터가 오르는 곳: react.html·aim.html의 finish, draw.html의 state 핸들러(정답·5초 컷·피카소·종료)와 chat(아깝다), ingyu.html의 showEv(정답/오답/넘기기)와 종료, who.html의 badgeEnd(칭호 기록), mafia.html의 badgeAnn(처형·첫날 밤·의사 구출)·logAnn(경찰 적발)·종료.
   - 처음 한 번 `seed()`가 기존 stats(판수·승리·반응속도 평균·에임 개수)를 카운터로 옮김. 세부 조건 뱃지는 기능을 넣은 뒤부터 쌓임.

@@ -62,8 +62,8 @@
     ['g_solo', 'global', (c) => sum(c, ['r_plays', 'a_plays']), 50, 0, '혼자서도 잘 놀아요', 'ひとりでも楽しい', '1인 게임 50판', 'ひとりゲーム50回'],
   ].map(([id, tab, key, n, secret, ko, ja, cko, cja]) => ({ id, tab, key, n, secret: !!secret, name: { ko, ja }, cond: { ko: cko, ja: cja } }));
   const TABS = [['all', 'logo', { ko: '전체', ja: 'すべて' }], ['draw', 'palette', { ko: 'Draw Mind', ja: 'Draw Mind' }], ['who', 'who', { ko: '누구 누구', ja: 'だれだれ' }], ['ingyu', 'search', { ko: '잉규게임', ja: 'インギュ' }], ['mafia', 'mafia', { ko: '마피아', ja: 'マフィア' }], ['react', 'bolt', { ko: '반응속도', ja: '反射神経' }], ['aim', 'target', { ko: '에임', ja: 'エイム' }], ['global', 'star', { ko: '공통', ja: '共通' }]];
-  const T = { ko: { title: '보유 뱃지', got: '획득!', newB: '새 뱃지 획득!', rep: '대표 뱃지', repTip: '뱃지를 눌러 대표 뱃지로 고를 수 있어요 (최대 3개, 친구에게 보여요)', setRep: '대표 뱃지로 설정', unRep: '대표 뱃지에서 빼기', repFull: '대표 뱃지는 3개까지예요', locked: '아직 얻지 못했어요', secret: '숨겨진 뱃지예요. 조건은 비밀!', date: '얻은 날', titles: '받은 칭호', titlesNone: '아직 받은 칭호가 없어요. 누구 누구에서 1등으로 뽑혀 보세요!', count: (a, b) => `${a} / ${b}`, close: '닫기', none: '아직 대표 뱃지가 없어요', badgeN: (n) => `뱃지 ${n}개`, times: (n) => `×${n}`, empty: '이 탭에는 뱃지가 없어요' },
-              ja: { title: '獲得バッジ', got: '獲得！', newB: '新しいバッジ獲得！', rep: '代表バッジ', repTip: 'バッジを押すと代表バッジに選べます（最大3個、友達に見えます）', setRep: '代表バッジにする', unRep: '代表バッジから外す', repFull: '代表バッジは3個までです', locked: 'まだ獲得していません', secret: '隠しバッジです。条件は秘密！', date: '獲得日', titles: 'もらった称号', titlesNone: 'まだ称号がありません。だれだれで1位に選ばれてみよう！', count: (a, b) => `${a} / ${b}`, close: '閉じる', none: 'まだ代表バッジがありません', badgeN: (n) => `バッジ ${n}個`, times: (n) => `×${n}`, empty: 'このタブにはバッジがありません' } };
+  const T = { ko: { title: '보유 뱃지', got: '획득!', newB: '새 뱃지 획득!', rep: '대표 뱃지', repTip: '뱃지를 눌러 대표 뱃지로 고를 수 있어요 (최대 3개, 친구에게 보여요)', setRep: '대표 뱃지로 설정', unRep: '대표 뱃지에서 빼기', repFull: '대표 뱃지는 3개까지예요', locked: '아직 얻지 못했어요', secret: '숨겨진 뱃지예요. 조건은 비밀!', date: '얻은 날', titles: '받은 칭호', titlesNone: '아직 받은 칭호가 없어요. 누구 누구에서 1등으로 뽑혀 보세요!', count: (a, b) => `${a} / ${b}`, close: '닫기', none: '아직 대표 뱃지가 없어요', badgeN: (n) => `뱃지 ${n}개`, times: (n) => `×${n}`, empty: '이 탭에는 뱃지가 없어요', more: '더 보기 ▼', fold: '접기 ▲' },
+              ja: { title: '獲得バッジ', got: '獲得！', newB: '新しいバッジ獲得！', rep: '代表バッジ', repTip: 'バッジを押すと代表バッジに選べます（最大3個、友達に見えます）', setRep: '代表バッジにする', unRep: '代表バッジから外す', repFull: '代表バッジは3個までです', locked: 'まだ獲得していません', secret: '隠しバッジです。条件は秘密！', date: '獲得日', titles: 'もらった称号', titlesNone: 'まだ称号がありません。だれだれで1位に選ばれてみよう！', count: (a, b) => `${a} / ${b}`, close: '閉じる', none: 'まだ代表バッジがありません', badgeN: (n) => `バッジ ${n}個`, times: (n) => `×${n}`, empty: 'このタブにはバッジがありません', more: 'もっと見る ▼', fold: '閉じる ▲' } };
   const t = (k, ...a) => { const v = T[L()][k]; return typeof v === 'function' ? v(...a) : v; };
   const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -120,6 +120,9 @@
   .bd-slots { display: flex; gap: 12px; } .bd-slot { width: 64px; height: 64px; background: var(--ink); display: flex; align-items: center; justify-content: center; color: var(--line); font-weight: 700; }
   .bd-tabs { display: flex; gap: 10px; overflow-x: auto; padding: 3px 3px 12px; scrollbar-width: none; } .bd-tabs::-webkit-scrollbar { display: none; }
   .bd-tabs button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; min-height: 40px; margin: 0 0 3px; white-space: nowrap; } .bd-tabs button.on { background: var(--yellow); color: #1a1426; } .bd-tabs button small { font-size: 10px; opacity: .8; }
+  /* PC(마우스): 탭을 여러 줄로 접어 놓고, 두 줄을 넘으면 '더 보기'로 펼침. 폰은 옆으로 밀어 넘김 */
+  @media (hover: hover) and (min-width: 620px) { .bd-tabs { flex-wrap: wrap; overflow: hidden; padding-bottom: 3px; } .bd-tabs button { margin-bottom: 6px; } }
+  .bd-more { display: block; margin: 0 3px 12px auto; padding: 4px 12px; font-size: 12px; min-height: 34px; } .bd-tabs + .bd-more.hidden + .bd-body { margin-top: 9px; }
   .bd-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; padding: 3px; } @media (min-width: 620px) { .bd-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .bd-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; background: var(--panel); min-height: 0; margin: 0; font-size: 11px; line-height: 1.35; text-align: center; word-break: keep-all; --bc: var(--line); --dc: var(--ink); --dp: 4px; --in: 0 0 0 0 transparent; }
   .bd-cell .ic { background: var(--ink); padding: 4px; line-height: 0; } .bd-cell.lock { color: var(--muted); } .bd-cell.got { --bc: var(--yellow); } .bd-cell.rep { --bc: var(--pink); }
@@ -133,7 +136,17 @@
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   function toast(b) { const el = document.createElement('div'); el.className = 'bd-toast'; el.innerHTML = `<span class="ic">${svg(b.id, 32)}</span><span><small>${t('newB')}</small>${esc(b.name[L()])}</span>`; document.body.appendChild(el); try { NG.confetti && NG.confetti(); } catch {} setTimeout(() => el.remove(), 4200); }
 
-  let view = null, tab = 'all';
+  let view = null, tab = 'all', tabsOpen = false;
+  // PC에서 탭이 두 줄을 넘으면 두 줄까지만 보이고 '더 보기'. 고른 탭이 접힌 줄에 있으면 자동으로 펼침
+  function fitTabs() {
+    if (!view) return; const tabs = view.querySelector('.bd-tabs'), more = view.querySelector('.bd-more'), first = tabs.firstElementChild; if (!first) return;
+    tabs.style.maxHeight = ''; const wraps = getComputedStyle(tabs).flexWrap === 'wrap';
+    const rowH = first.offsetHeight + 6 + 10, two = 3 + rowH * 2 - 10 + 3, need = wraps && tabs.scrollHeight > two + 6;
+    more.classList.toggle('hidden', !need); if (!need) return;
+    const on = tabs.querySelector('button.on'); if (on && on.offsetTop - first.offsetTop >= rowH * 2 - 4) tabsOpen = true;
+    tabs.style.maxHeight = tabsOpen ? '' : two + 'px'; more.textContent = t(tabsOpen ? 'fold' : 'more');
+  }
+  window.addEventListener('resize', () => fitTabs());
   const gotCount = (d = data) => LIST.filter(b => d.got[b.id]).length;
   function detail(b) {
     const got = data.got[b.id], isRep = data.rep.includes(b.id), v = Math.min(value(b), b.n), hide = b.secret && !got;
@@ -154,6 +167,7 @@
     const tabs = view.querySelector('.bd-tabs'); tabs.innerHTML = '';
     for (const [id, ic, nm] of TABS) { const list = LIST.filter(b => id === 'all' || b.tab === id), b = document.createElement('button'); b.className = id === tab ? 'on' : '';
       b.innerHTML = `${id === 'all' ? svg('logo', 16) : NG.icon(ic, 16)}<span>${nm[L()]}</span><small>${list.filter(x => data.got[x.id]).length}/${list.length}</small>`; b.addEventListener('click', () => { tab = id; render(); }); tabs.appendChild(b); }
+    fitTabs();
     const body = view.querySelector('.bd-body'); body.innerHTML = '';
     let list = LIST.filter(b => tab === 'all' || b.tab === tab);
     if (tab === 'all') list = [...list.filter(b => data.got[b.id]).sort((a, b) => data.got[b.id] - data.got[a.id]), ...list.filter(b => !data.got[b.id])];
@@ -174,7 +188,8 @@
     if (view) view.remove();
     view = document.createElement('div'); view.className = 'bd-wrap';
     view.innerHTML = `<div class="bd-in"><div class="bd-head"><button class="btn-ghost" data-a="back">${NG.icon('back', 16)}</button><h2>${svg('logo', 32)}<span>${t('title')}</span></h2><span class="cnt"></span></div>
-      <div class="bd-rep pxb"><h3>${t('rep')}</h3><div class="bd-slots"></div><p>${t('repTip')}</p></div><div class="bd-tabs"></div><div class="bd-body"></div></div>`;
+      <div class="bd-rep pxb"><h3>${t('rep')}</h3><div class="bd-slots"></div><p>${t('repTip')}</p></div><div class="bd-tabs"></div><button class="bd-more btn-ghost hidden"></button><div class="bd-body"></div></div>`;
+    view.querySelector('.bd-more').addEventListener('click', () => { tabsOpen = !tabsOpen; fitTabs(); });
     view.querySelector('[data-a="back"]').addEventListener('click', () => { view.remove(); view = null; });
     document.body.appendChild(view); render(); ready.then(render);
   }
