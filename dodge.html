@@ -27,6 +27,13 @@
     background: rgba(255,255,255,.12); box-shadow: 0 -3px 0 0 rgba(255,255,255,.3), 0 3px 0 0 rgba(255,255,255,.3), -3px 0 0 0 rgba(255,255,255,.3), 3px 0 0 0 rgba(255,255,255,.3); }
   #cl { left: 14px; } #cr { right: 14px; }
   .ctl div.on { opacity: .9; background: rgba(255,255,255,.28); transform: translateY(2px); }
+  .ov.intro { background: rgba(18,15,29,.66); }
+  .bgpick { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 4px; }
+  .bgpick .lbl2 { font-size: 11px; color: var(--lilac, #c9a8ff); opacity: .9; }
+  .bgpick .row { display: flex; gap: 12px; }
+  .bgpick .chip { width: 52px; height: 52px; padding: 0; border: 0; cursor: pointer; position: relative; box-shadow: 0 -3px 0 0 #2a1f3d, 0 3px 0 0 #2a1f3d, -3px 0 0 0 #2a1f3d, 3px 0 0 0 #2a1f3d; touch-action: manipulation; }
+  .bgpick .chip.on { box-shadow: 0 -3px 0 0 var(--yellow), 0 3px 0 0 var(--yellow), -3px 0 0 0 var(--yellow), 3px 0 0 0 var(--yellow); transform: translateY(-2px); }
+  .bgpick .nm { font-size: 12px; color: #fff; font-weight: 700; min-height: 16px; }
   .ov { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 20px; background: rgba(18,15,29,.78); }
   .ov.hidden { display: none; }
   .ov h2 { font-size: clamp(26px, 8vw, 40px); color: var(--yellow); text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
@@ -71,10 +78,10 @@
 (() => {
   if (!NG.requireLogin()) return;
   NG.addT({
-    ko: { gameName: '똥피하기', again2: '다시 도전', seeRank: '랭킹 보기', toLobby: '로비로', tapStart: '화면을 터치해서 시작', lv: (n) => `LV ${n}`,
+    ko: { gameName: '똥피하기', again2: '다시 도전', seeRank: '랭킹 보기', toLobby: '로비로', tapStart: '화면을 터치해서 시작', bgLbl: '배경', bgN: { default: '기본', sky: '맑은 하늘', sunset: '노을', night: '밤하늘' }, lv: (n) => `LV ${n}`,
       intro: '화면 <b>왼쪽 / 오른쪽</b>을 누르고 있으면 움직여요.<br>똥에 맞으면 끝!', keyHint: 'PC는 ← → 방향키', resLbl: '버틴 시간', newRec: '최고 기록 경신!', prevBest: (v) => `이전 최고 ${v}초`, myRank: (n) => `현재 랭킹 ${n}위`,
       bestPill: (v) => `최고 ${v}초`, noBest: '첫 도전!', grade: (s) => s >= 60 ? '피하기의 신!' : s >= 30 ? '생존자!' : s >= 15 ? '꽤 잘 피해요' : s >= 3 ? '조금만 더!' : '출발하자마자…' },
-    ja: { gameName: 'うんち避け', again2: 'もう一回', seeRank: 'ランキング', toLobby: 'ロビーへ', tapStart: '画面をタップしてスタート', lv: (n) => `LV ${n}`,
+    ja: { gameName: 'うんち避け', again2: 'もう一回', seeRank: 'ランキング', toLobby: 'ロビーへ', tapStart: '画面をタップしてスタート', bgLbl: '背景', bgN: { default: 'ノーマル', sky: '青空', sunset: '夕焼け', night: '夜空' }, lv: (n) => `LV ${n}`,
       intro: '画面の<b>左／右</b>を押している間、動きます。<br>うんちに当たったら終わり！', keyHint: 'PCは ← → キー', resLbl: '生存時間', newRec: '自己ベスト更新！', prevBest: (v) => `前回のベスト ${v}秒`, myRank: (n) => `現在ランキング${n}位`,
       bestPill: (v) => `ベスト ${v}秒`, noBest: '初挑戦！', grade: (s) => s >= 60 ? '避けの神！' : s >= 30 ? 'サバイバー！' : s >= 15 ? 'なかなか上手' : s >= 3 ? 'もう少し！' : 'スタート直後…' },
   });
@@ -115,12 +122,50 @@
     const size = 28 + Math.random() * 8;
     poops.push({ x: size / 2 + Math.random() * (W - size), y: -size, s: size, v: 150 + s * 6 + Math.random() * 90 });
   }
+  // ── 배경 (기본 / 맑은 하늘 / 노을 / 밤하늘) ──
+  const BGS = ['default', 'sky', 'sunset', 'night'], BG_KEY = 'dm-dodge-bg';
+  const GH_OF = { default: 14, sky: 36, sunset: 36, night: 36 };
+  let bg = 'sky';
+  try { const v = localStorage.getItem(BG_KEY); if (BGS.includes(v)) bg = v; } catch {}
+  let GH = GH_OF[bg];
+  const foot = () => bg === 'default' ? 0 : 4;      // 잔디 위에선 발이 살짝 파묻히게
+  const hash = (n) => { const x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+  const STARS = Array.from({ length: 45 }, (_, i) => ({ x: Math.floor(hash(i * 2 + 1) * W), f: hash(i * 2 + 2), s: hash(i + 50) > .6 ? 3 : 2, c: ['#ffffff', '#cfe0ff', '#fff3b0'][i % 3] }));
+  let moonImg = null;
+  const getMoon = () => { if (!moonImg) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#fff6c8'; x.beginPath(); x.arc(28, 32, 25, 0, 7); x.fill(); x.globalCompositeOperation = 'destination-out'; x.beginPath(); x.arc(41, 28, 23, 0, 7); x.fill(); moonImg = c; } return moonImg; };
+  function sky(stops) { const g = ctx.createLinearGradient(0, 0, 0, H - GH); stops.forEach(([o, c]) => g.addColorStop(o, c)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+  function ground(c) {
+    const g0 = H - GH;
+    ctx.fillStyle = c[0]; ctx.fillRect(0, g0, W, GH);
+    ctx.fillStyle = c[1]; ctx.fillRect(0, g0, W, 5);
+    ctx.fillStyle = c[2]; ctx.fillRect(0, g0 + 5, W, 4);
+    for (let x = 0; x < W; x += 12) { const h = [4, 6, 8][Math.floor(hash(x) * 3)]; ctx.fillStyle = c[1]; ctx.fillRect(x, g0 - h + 2, 4, h - 1); }
+    ctx.fillStyle = c[3]; ctx.fillRect(0, g0 + 22, W, GH - 22);
+    ctx.fillStyle = c[2]; for (let x = 6; x < W; x += 24) { ctx.fillRect(x, g0 + 11, 4, 4); ctx.fillRect(x + 12, g0 + 17, 4, 4); }
+  }
+  function drawBg() {
+    const g0 = H - GH;
+    if (bg === 'sky') { sky([[0, '#7cc4f2'], [1, '#e3f4fd']]); ground(['#6cc04a', '#8ddc5c', '#4fa83a', '#3f8f31']); }
+    else if (bg === 'sunset') {
+      sky([[0, '#3b2a6b'], [.45, '#a8467a'], [.8, '#ff8a4c'], [1, '#ffd27a']]);
+      ctx.fillStyle = '#fff1b8'; ctx.fillRect(262, g0 - 34, 60, 34); ctx.fillRect(272, g0 - 44, 40, 10);
+      ground(['#3f6b3a', '#5d8f4a', '#2f5530', '#244426']);
+    } else if (bg === 'night') {
+      sky([[0, '#070b24'], [1, '#25346b']]);
+      for (const st of STARS) { ctx.fillStyle = st.c; ctx.fillRect(st.x, Math.floor(st.f * (g0 - 140)), st.s, st.s); }
+      ctx.drawImage(getMoon(), 255, 50, 64, 64);
+      ground(['#2d5a3a', '#3f7a4d', '#224832', '#17301f']);
+    } else {
+      ctx.fillStyle = '#1d2a44'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#2a3b5c'; for (let y = 0; y < H; y += 24) for (let x = (y / 24 % 2) * 24; x < W; x += 48) ctx.fillRect(x, y, 24, 24);
+      ctx.fillStyle = '#3d6b3a'; ctx.fillRect(0, H - 14, W, 14); ctx.fillStyle = '#2e4a2a'; ctx.fillRect(0, H - 6, W, 6);
+    }
+  }
   function draw() {
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#2a3b5c'; for (let y = 0; y < H; y += 24) for (let x = (y / 24 % 2) * 24; x < W; x += 48) ctx.fillRect(x, y, 24, 24);
-    ctx.fillStyle = '#3d6b3a'; ctx.fillRect(0, H - 14, W, 14); ctx.fillStyle = '#2e4a2a'; ctx.fillRect(0, H - 6, W, 6);
+    drawBg();
     for (const p of poops) ctx.drawImage(poopImg, p.x - p.s / 2, p.y - p.s / 2, p.s, p.s);
-    ctx.drawImage(meImg, px - PS / 2, H - 14 - PS, PS, PS);
+    ctx.drawImage(meImg, px - PS / 2, H - GH - PS + foot(), PS, PS);
   }
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -128,7 +173,7 @@
     const L = dirL || keyL, R = dirR || keyR;
     if (L !== R) { moved = true; px += (R ? 1 : -1) * P_SPEED * dt; px = Math.max(PS / 2, Math.min(W - PS / 2, px)); }
     spawnAcc += dt * (1.6 + s * 0.12); while (spawnAcc >= 1) { spawnAcc--; spawn(s); }
-    const py = H - 14 - PS / 2;
+    const py = H - GH - PS / 2 + foot();
     for (const p of poops) {
       p.y += p.v * dt;
       if (Math.abs(p.x - px) < (p.s * 0.36 + PS * 0.3) && Math.abs(p.y - py) < (p.s * 0.36 + PS * 0.36)) { draw(); return finish(s); }
@@ -139,16 +184,27 @@
     draw(); raf = requestAnimationFrame(frame);
   }
   let stillGot = false;
+  const BG_THUMB = {
+    default: 'linear-gradient(#3d6b3a,#3d6b3a) bottom/100% 8px no-repeat, #1d2a44',
+    sky: 'linear-gradient(#6cc04a,#6cc04a) bottom/100% 14px no-repeat, linear-gradient(#7cc4f2,#e3f4fd)',
+    sunset: 'linear-gradient(#3f6b3a,#3f6b3a) bottom/100% 14px no-repeat, linear-gradient(#3b2a6b,#a8467a 45%,#ff8a4c 80%,#ffd27a)',
+    night: 'linear-gradient(#2d5a3a,#2d5a3a) bottom/100% 14px no-repeat, linear-gradient(#070b24,#25346b)' };
   function render() {
     const ov = $('ov');
     $('hud').classList.toggle('hidden', phase !== 'play');
     $('acts').classList.toggle('hidden', phase !== 'result');
     $('ctl').style.display = phase === 'play' || phase === 'cd' ? '' : 'none';
-    ov.classList.toggle('hidden', phase === 'play');
+    ov.classList.toggle('hidden', phase === 'play'); ov.classList.toggle('intro', phase === 'intro');
     if (phase === 'intro') {
       ov.innerHTML = `<div class="big-ic">${NG.icon('poop', 64)}</div><h2>${t('gameName')}</h2><p>${t('intro')}</p>
         ${best != null ? `<div class="bestline">${NG.icon('trophy', 14)}<b>${t('bestPill', fmt(best))}</b></div>` : ''}<div class="hint">▶ ${t('tapStart')}</div>
-        <p style="font-size:11px;opacity:.6">${matchMedia('(hover: hover)').matches ? t('keyHint') : ''}</p>`;
+        <p style="font-size:11px;opacity:.6">${matchMedia('(hover: hover)').matches ? t('keyHint') : ''}</p>
+        <div class="bgpick"><div class="lbl2">${t('bgLbl')}</div><div class="row">${BGS.map(k => `<button type="button" class="chip${k === bg ? ' on' : ''}" data-bg="${k}" aria-label="${t('bgN')[k]}" style="background:${BG_THUMB[k]}"></button>`).join('')}</div><div class="nm" id="bgNm">${t('bgN')[bg]}</div></div>`;
+      ov.querySelectorAll('.chip').forEach(b => b.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault(); bg = b.dataset.bg; GH = GH_OF[bg];
+        try { localStorage.setItem(BG_KEY, bg); } catch {}
+        ov.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b)); $('bgNm').textContent = t('bgN')[bg]; draw();
+      }));
     } else if (phase === 'result') {
       const r = result;
       ov.innerHTML = `<div class="lbl">${t('resLbl')}</div><div class="big">${fmt(r.time)}<small>s</small></div><div class="grade">${t('grade', r.time)}</div>
