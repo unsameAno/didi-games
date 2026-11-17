@@ -343,7 +343,7 @@
   function renderGames() {
     for (const type of ['multi', 'solo']) {
       const w = $(type === 'multi' ? 'gamesMulti' : 'gamesSolo'); w.innerHTML = '';
-      NG.GAMES.filter(g => (g.type || 'multi') === type).forEach((g, i) => {
+      NG.GAMES.filter(g => !g.rankOnly && (g.type || 'multi') === type).forEach((g, i) => {
         const c = NG.el('button', 'gcard ' + type); c.style.animationDelay = (i * 0.06) + 's';
         const ppl = type === 'solo' ? NG.t('solo') : NG.t('people', g.min, g.max);
         c.innerHTML = `<span class="gic${g.anchor === 'bottom' ? ' btm' : ''}" style="background:${g.bg || ''}">${NG.icon(g.icon, 48)}</span><span class="gtx"><b>${g.name[NG.ui]}</b><small>${g.desc[NG.ui]}</small><span class="meta">${NG.icon('people', 14)} ${ppl}</span></span>`
@@ -411,7 +411,7 @@
   // ── 랭킹
   function renderRankTabs() {
     const w = $('rankTabs'); w.innerHTML = '';
-    for (const g of NG.GAMES.filter(g => g.rank)) { const b = NG.el('button', g.id === rankGame ? 'on' : ''); b.innerHTML = `${NG.icon(g.icon, 16)}${g.name[NG.ui]}`; b.addEventListener('click', () => { rankGame = g.id; renderRankTabs(); loadRank(); }); w.appendChild(b); }
+    for (const g of NG.GAMES.filter(g => g.rank)) { const b = NG.el('button', g.id === rankGame ? 'on' : ''); b.innerHTML = `${NG.icon(g.icon, 16)}${(g.rankName || g.name)[NG.ui]}`; b.addEventListener('click', () => { rankGame = g.id; renderRankTabs(); loadRank(); }); w.appendChild(b); }
   }
   async function loadRank() {
     const g = NG.game(rankGame); const w = $('rank'); w.innerHTML = '';

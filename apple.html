@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120f1d">
+<title>사과게임 · DIDI Games</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; height: 100dvh; touch-action: none; overscroll-behavior: none; overflow: hidden; }
+  .top { position: sticky; top: 0; z-index: 6; }
+  .top .ttl { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .wrap { flex: 1; display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 520px; margin: 0 auto; padding: 12px 15px 16px; min-height: 0; }
+  @media (hover: hover) and (min-width: 900px) { .wrap { max-width: 1120px; } }
+  .field { flex: 1; min-height: 0; position: relative; background: #2b1a2e; --bc: var(--ink); --dc: var(--ink); --dp: 8px; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+  .hud { position: absolute; top: 10px; left: 12px; right: 12px; z-index: 2; pointer-events: none; }
+  .hud .row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .hud .sc { font-size: 26px; font-weight: 700; color: var(--yellow); text-shadow: 3px 3px 0 rgba(0,0,0,.5); font-variant-numeric: tabular-nums; }
+  .hud .sc small { font-size: 12px; color: #fff; margin-left: 3px; }
+  .hud .md { font-size: 12px; font-weight: 700; padding: 4px 8px; color: var(--ink); }
+  .hud .md.classic { background: var(--blue, #4d8dff); color: #fff; } .hud .md.casual { background: var(--mint, #2ee6a6); }
+  .bar { height: 12px; background: rgba(0,0,0,.45); box-shadow: 0 0 0 3px rgba(0,0,0,.45); }
+  .bar i { display: block; height: 100%; width: 100%; background: var(--mint, #2ee6a6); transform-origin: left; }
+  .bar.low i { background: var(--pink, #ff4d8d); }
+  .ov { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 20px; background: rgba(18,15,29,.82); }
+  .ov.hidden { display: none; }
+  .ov h2 { font-size: clamp(26px, 8vw, 40px); color: var(--yellow); text-shadow: 3px 3px 0 rgba(0,0,0,.45); }
+  .ov p { font-size: 14px; line-height: 1.7; color: #fff; }
+  .ov .hint { font-size: 13px; color: var(--yellow); animation: blink 1s steps(2) infinite; }
+  .big-ic { animation: bob 1s steps(2) infinite; }
+  .cd { font-size: clamp(90px, 30vw, 150px); color: #fff; font-weight: 700; text-shadow: 6px 6px 0 var(--pink); animation: pop .3s steps(3); }
+  .big { font-size: clamp(56px, 17vw, 92px); font-weight: 700; color: var(--yellow); line-height: 1; text-shadow: 5px 5px 0 var(--pink); animation: pop .3s steps(3); font-variant-numeric: tabular-nums; }
+  .big small { font-size: .3em; margin-left: 4px; }
+  .lbl { font-size: 12px; color: var(--muted); }
+  .grade { font-size: 18px; font-weight: 700; color: #fff; }
+  .sub2 { font-size: 13px; color: #fff; }
+  .newrec { background: var(--pink); color: #fff; font-size: 13px; font-weight: 700; padding: 5px 10px; animation: pulse .6s steps(2) infinite; }
+  .bestline { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; } .bestline b { color: var(--yellow); }
+  .modes { display: flex; gap: 14px; width: 100%; max-width: 420px; margin-top: 6px; }
+  .mode { flex: 1; min-height: 150px; padding: 0 8px 12px; border: 0; cursor: pointer; color: #fff; background: #2a1f3d; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; font-family: inherit; touch-action: manipulation;
+    box-shadow: 0 -3px 0 0 #120f1d, 0 3px 0 0 #120f1d, -3px 0 0 0 #120f1d, 3px 0 0 0 #120f1d; }
+  .mode:active { transform: translateY(2px); }
+  .mode .top2 { height: 10px; width: calc(100% + 16px); margin: 0 -8px 6px; }
+  .mode.classic .top2 { background: var(--blue, #4d8dff); } .mode.casual .top2 { background: var(--mint, #2ee6a6); }
+  .mode b { font-size: 20px; } .mode small { font-size: 12px; line-height: 1.6; color: #ddd; } .mode .bst { font-size: 12px; color: var(--yellow); margin-top: auto; font-weight: 700; }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .acts.hidden { display: none; }
+  .acts button { font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
+  .acts .full { grid-column: 1 / -1; }
+  .acts .full.main { font-size: 18px; padding: 14px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <span id="logoSlot"></span>
+  <span class="ttl"><i data-ic="apple" data-size="16"></i><span data-t="gameName"></span></span>
+  <span class="grow"></span>
+  <span class="pill"><i data-ic="trophy" data-size="14"></i><span id="bestTxt">--</span></span>
+</div>
+<div class="wrap">
+  <div class="field pxb" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud hidden" id="hud"><div class="bar" id="bar"><i id="barI"></i></div><div class="row"><span class="sc" id="sc">0<small data-t="pts"></small></span><span class="md" id="md"></span></div></div>
+    <div class="ov" id="ov"></div>
+  </div>
+  <div class="acts hidden" id="acts">
+    <button class="btn-main full main" id="againBtn"><i data-ic="play" data-size="14"></i><span data-t="again2"></span></button>
+    <button class="btn-ghost full" id="modeBtn"><span data-t="changeMode"></span></button>
+    <button class="btn-yellow" id="rankBtn"><i data-ic="trophy" data-size="16"></i><span data-t="seeRank"></span></button>
+    <button class="btn-ghost" id="homeBtn"><i data-ic="home" data-size="16"></i><span data-t="toLobby"></span></button>
+  </div>
+</div>
+<script src="common.js"></script>
+<script src="badges.js"></script>
+<script>
+(() => {
+  if (!NG.requireLogin()) return;
+  NG.addT({
+    ko: { gameName: '사과게임', pts: '점', again2: '다시 도전', changeMode: '모드 바꾸기', seeRank: '랭킹 보기', toLobby: '로비로', modeHint: '▶ 모드를 눌러 시작', keyHint: 'PC는 1 / 2 키',
+      intro: '드래그한 사각형 안의 숫자 합이 <b>10</b>이 되면<br>사과가 사라져요! 제한시간 120초',
+      mClassic: '클래식', mClassicD: '다 못 지울 수도 있는<br>완전 랜덤 숫자', mCasual: '캐주얼', mCasualD: '전부 지울 수 있는<br>해답이 숨어 있어요',
+      bestPill: (v) => `최고 ${v}점`, noBest: '첫 도전!', bestCard: (v) => v == null ? '최고 --점' : `최고 ${v}점`,
+      resLbl: '점수', apples: (n) => `사과 ${n}개`, bonus: (n) => `시간 보너스 +${n}`, perfect: '전부 지웠어요!', newRec: '최고 기록 경신!', prevBest: (v) => `이전 최고 ${v}점`, myRank: (n) => `현재 랭킹 ${n}위`,
+      grade: (n) => n >= 130 ? '사과의 대왕!' : n >= 120 ? '사과 장인!' : n >= 100 ? '사과 농장주!' : n >= 70 ? '꽤 잘 따요' : n >= 30 ? '조금만 더!' : '아직 풋사과…' },
+    ja: { gameName: 'りんごゲーム', pts: '点', again2: 'もう一回', changeMode: 'モード変更', seeRank: 'ランキング', toLobby: 'ロビーへ', modeHint: '▶ モードをタップしてスタート', keyHint: 'PCは 1 / 2 キー',
+      intro: 'ドラッグした四角の中の数字の合計が<b>10</b>になると<br>りんごが消えます！制限時間120秒',
+      mClassic: 'クラシック', mClassicD: '全部消せないことも<br>完全ランダム', mCasual: 'カジュアル', mCasualD: '全部消せる<br>答えが隠れています',
+      bestPill: (v) => `ベスト ${v}点`, noBest: '初挑戦！', bestCard: (v) => v == null ? 'ベスト --点' : `ベスト ${v}点`,
+      resLbl: 'スコア', apples: (n) => `りんご ${n}個`, bonus: (n) => `タイムボーナス +${n}`, perfect: '全部消した！', newRec: '自己ベスト更新！', prevBest: (v) => `前回のベスト ${v}点`, myRank: (n) => `現在ランキング${n}位`,
+      grade: (n) => n >= 130 ? 'りんご大王！' : n >= 120 ? 'りんご職人！' : n >= 100 ? 'りんご農園主！' : n >= 70 ? 'なかなか上手' : n >= 30 ? 'もう少し！' : 'まだ青りんご…' },
+  });
+  const $ = (id) => document.getElementById(id), t = NG.t;
+  const SEC = 120, GOAL = 'apple';
+  const gid = (m) => m === 'casual' ? 'applec' : 'apple';
+  document.title = `${t('gameName')} · DIDI Games`;
+  $('logoSlot').outerHTML = NG.logoHTML(true);
+  NG.applyText(); NG.bindLogo(document);
+  NG.setPresence(GOAL); NG.touchProfile('apple'); NG.touchProfile('applec');
+
+  const toImg = (html) => { const m = html.match(/<svg[\s\S]*<\/svg>/); const img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m[0].replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')); return img; };
+  const appleImg = toImg(NG.icon('apple', 64));
+
+  let best = { classic: null, casual: null }, mode = 'classic', phase = 'intro', result = null;
+  const setBest = () => { const v = best[mode]; $('bestTxt').textContent = v != null ? t('bestPill', v) : t('noBest'); };
+  const loadBest = () => Promise.all(['classic', 'casual'].map(m => NG.myStats(gid(m)).then(s => { if (s && s.score != null) best[m] = s.score; }))).then(() => { setBest(); if (phase === 'intro') render(); });
+  setBest(); loadBest();
+
+  // ── 판 만들기 ─────────────────────────────────────────
+  const rnd = (n) => Math.floor(Math.random() * n);
+  function genClassic(R, C) {
+    const g = Array.from({ length: R }, () => Array.from({ length: C }, () => 1 + rnd(9)));
+    let s = g.flat().reduce((a, b) => a + b, 0), guard = 0;       // 전체 합이 10의 배수가 되게 맞춤
+    while (s % 10 !== 0 && guard++ < 5000) { const r = rnd(R), c = rnd(C), d = (s % 10) <= 5 ? -1 : 1, v = g[r][c] + d; if (v >= 1 && v <= 9) { g[r][c] = v; s += d; } }
+    return g;
+  }
+  // 캐주얼: 판 전체를 넓이 2~10인 직사각형 조각으로 나누고, 조각마다 합이 정확히 10이 되도록 숫자를 채움
+  // → 조각을 하나씩 드래그하면 전부 지울 수 있는 순서가 반드시 존재
+  function genCasual(R, C) {
+    const g = Array.from({ length: R }, () => Array(C).fill(0));
+    // 합이 10인 n개(각 1~9)의 숫자를 고르게 뽑음: 1~9 사이에 칸막이 n-1개
+    const fill = (r0, c0, h, w) => {
+      const n = h * w, cuts = new Set(); while (cuts.size < n - 1) cuts.add(1 + rnd(9));
+      const cs = [0, ...[...cuts].sort((x, y) => x - y), 10], v = []; for (let i = 0; i < n; i++) v.push(cs[i + 1] - cs[i]);
+      for (let i = n - 1; i > 0; i--) { const j = rnd(i + 1); [v[i], v[j]] = [v[j], v[i]]; }
+      for (let i = 0; i < n; i++) g[r0 + Math.floor(i / w)][c0 + (i % w)] = v[i];
+    };
+    // 조각은 주로 2~4칸(가끔 5~6칸). 조각이 크면 1만 잔뜩 나와서 너무 쉬워짐
+    const STOP = { 2: 1, 3: 0.6, 4: 0.45, 5: 0.08, 6: 0.04 };
+    const split = (r0, c0, h, w) => {
+      const a = h * w, cand = [];
+      for (let x = 1; x < w; x++) if (x * h >= 2 && (w - x) * h >= 2) cand.push(['v', x]);
+      for (let y = 1; y < h; y++) if (y * w >= 2 && (h - y) * w >= 2) cand.push(['h', y]);
+      if (!cand.length || Math.random() < (STOP[a] || 0)) { fill(r0, c0, h, w); return; }
+      const [k, q] = cand[rnd(cand.length)];
+      if (k === 'v') { split(r0, c0, h, q); split(r0, c0 + q, h, w - q); } else { split(r0, c0, q, w); split(r0 + q, c0, h - q, w); }
+    };
+    split(0, 0, R, C);
+    return g;
+  }
+
+  // ── 화면 ──────────────────────────────────────────────
+  const cv = $('cv'), ctx = cv.getContext('2d'), stage = $('stage');
+  let FW = 360, FH = 560, dpr = 1;
+  let R = 17, C = 10, grid = [], alive = 0;       // grid[r][c] = 숫자(0이면 비어 있음)
+  let cell = 30, ox = 0, oy = 0, raf = 0;
+  const HUD_H = 62;
+  function layout() {
+    cell = Math.max(10, Math.floor(Math.min((FW - 20) / C, (FH - HUD_H - 14) / R)));
+    ox = Math.floor((FW - cell * C) / 2); oy = HUD_H + Math.floor((FH - HUD_H - cell * R) / 2);
+  }
+  function resize() {
+    const r = stage.getBoundingClientRect(); dpr = Math.min(devicePixelRatio || 1, 2);
+    FW = r.width; FH = r.height; cv.width = Math.round(FW * dpr); cv.height = Math.round(FH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.imageSmoothingEnabled = false; layout(); if (phase !== 'play') draw();
+  }
+  addEventListener('resize', resize);
+
+  let sel = null, score = 0, cleared = 0, t0 = 0, maxDrag = 0, fast10 = 0, ghosts = [], floats = [], flash = null, lastT = 0, over = false;
+  const FONT = '"Galmuri11","Galmuri9","Noto Sans KR",sans-serif';
+  function rectOf(s) { return { r0: Math.min(s.r0, s.r1), r1: Math.max(s.r0, s.r1), c0: Math.min(s.c0, s.c1), c1: Math.max(s.c0, s.c1) }; }
+  function stat(rc) { let sum = 0, n = 0; for (let r = rc.r0; r <= rc.r1; r++) for (let c = rc.c0; c <= rc.c1; c++) if (grid[r][c]) { sum += grid[r][c]; n++; } return { sum, n }; }
+  function draw() {
+    ctx.clearRect(0, 0, FW, FH);
+    ctx.fillStyle = '#2b1a2e'; ctx.fillRect(0, 0, FW, FH);
+    // 판 배경 (은은한 바둑판)
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) { ctx.fillStyle = (r + c) % 2 ? '#35213a' : '#2f1d33'; ctx.fillRect(ox + c * cell, oy + r * cell, cell, cell); }
+    const s = Math.round(cell * 0.94), pad = (cell - s) / 2;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(cell * 0.46)}px ${FONT}`; ctx.lineJoin = 'round';
+    const inSel = sel ? rectOf(sel) : null;
+    for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+      const v = grid[r][c]; if (!v) continue;
+      const x = ox + c * cell, y = oy + r * cell;
+      ctx.drawImage(appleImg, x + pad, y + pad, s, s);
+      if (phase !== 'play' && phase !== 'result') continue;      // 시작 전에는 숫자를 가려서 미리 못 보게
+      ctx.lineWidth = Math.max(2, cell * 0.12); ctx.strokeStyle = '#2a1f3d'; ctx.strokeText(v, x + cell / 2, y + cell / 2 + cell * 0.06);
+      ctx.fillStyle = '#fff'; ctx.fillText(v, x + cell / 2, y + cell / 2 + cell * 0.06);
+    }
+    for (const g of ghosts) { ctx.globalAlpha = Math.max(0, g.a); ctx.drawImage(appleImg, g.x, g.y, s, s); } ctx.globalAlpha = 1;
+    if (inSel) {
+      const { sum } = stat(inSel), x = ox + inSel.c0 * cell, y = oy + inSel.r0 * cell, w = (inSel.c1 - inSel.c0 + 1) * cell, h = (inSel.r1 - inSel.r0 + 1) * cell;
+      const col = sum === 10 ? '46,230,166' : sum > 10 ? '255,77,141' : '255,210,63';
+      ctx.fillStyle = `rgba(${col},.28)`; ctx.fillRect(x, y, w, h); ctx.lineWidth = 3; ctx.strokeStyle = `rgb(${col})`; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+      const bw = Math.max(34, cell * 1.1), bh = Math.max(20, cell * 0.62), bx = Math.min(FW - bw - 2, x + w - bw), by = Math.max(HUD_H, y - bh - 3);
+      ctx.fillStyle = `rgb(${col})`; ctx.fillRect(bx, by, bw, bh); ctx.fillStyle = '#2a1f3d'; ctx.font = `700 ${Math.round(bh * 0.7)}px ${FONT}`; ctx.fillText(sum, bx + bw / 2, by + bh / 2 + 1);
+    }
+    if (flash) { ctx.fillStyle = `rgba(255,77,141,${flash.a * 0.35})`; ctx.fillRect(flash.x, flash.y, flash.w, flash.h); }
+    ctx.font = `700 ${Math.round(cell * 0.7)}px ${FONT}`;
+    for (const f of floats) { ctx.globalAlpha = Math.max(0, f.a); ctx.lineWidth = 4; ctx.strokeStyle = '#2a1f3d'; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = '#ffd23f'; ctx.fillText(f.text, f.x, f.y); } ctx.globalAlpha = 1;
+  }
+  const fmtScore = () => { $('sc').innerHTML = `${score}<small>${t('pts')}</small>`; };
+
+  // ── 진행 ──────────────────────────────────────────────
+  function newBoard() {
+    const portrait = !(FW > FH * 1.15);
+    R = portrait ? 17 : 10; C = portrait ? 10 : 17;
+    grid = mode === 'casual' ? genCasual(R, C) : genClassic(R, C);
+    alive = R * C; layout();
+  }
+  function begin() {
+    newBoard(); sel = null; score = 0; cleared = 0; maxDrag = 0; fast10 = 0; ghosts = []; floats = []; flash = null; over = false;
+    $('md').className = 'md ' + mode; $('md').textContent = t(mode === 'casual' ? 'mCasual' : 'mClassic'); fmtScore();
+    phase = 'cd'; render(); draw(); let n = 3;
+    const show = () => { $('ov').innerHTML = `<div class="cd">${n}</div>`; show.n = n; };
+    show(); clearInterval(begin.tm);
+    begin.tm = setInterval(() => { n--; if (n > 0) show(); else { clearInterval(begin.tm); start(); } }, 700);
+  }
+  function start() { phase = 'play'; render(); t0 = lastT = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); }
+  const elapsed = () => (performance.now() - t0) / 1000;
+  function frame(now) {
+    if (phase !== 'play') return;
+    const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+    const left = SEC - elapsed();
+    $('barI').style.transform = `scaleX(${Math.max(0, left / SEC)})`; $('bar').classList.toggle('low', left < 15);
+    for (const g of ghosts) { g.vy += 900 * dt; g.y += g.vy * dt; g.x += g.vx * dt; g.a -= dt * 1.6; } ghosts = ghosts.filter(g => g.a > 0 && g.y < FH + 40);
+    for (const f of floats) { f.y -= 40 * dt; f.a -= dt * 1.4; } floats = floats.filter(f => f.a > 0);
+    if (flash) { flash.a -= dt * 3; if (flash.a <= 0) flash = null; }
+    draw();
+    if (left <= 0) { finish(); return; }
+    raf = requestAnimationFrame(frame);
+  }
+  function release() {
+    if (!sel) return;
+    const rc = rectOf(sel), { sum, n } = stat(rc); sel = null;
+    if (sum === 10 && n > 0) {
+      const s = Math.round(cell * 0.94), pad = (cell - s) / 2;
+      for (let r = rc.r0; r <= rc.r1; r++) for (let c = rc.c0; c <= rc.c1; c++) if (grid[r][c]) { ghosts.push({ x: ox + c * cell + pad, y: oy + r * cell + pad, vx: (Math.random() - .5) * 120, vy: -150 - Math.random() * 120, a: 1 }); grid[r][c] = 0; }
+      cleared += n; score = cleared; alive -= n; maxDrag = Math.max(maxDrag, n); if (elapsed() <= 10) fast10 = cleared;
+      floats.push({ text: '+' + n, x: ox + (rc.c0 + rc.c1 + 1) * cell / 2, y: oy + (rc.r0 + rc.r1 + 1) * cell / 2, a: 1.2 }); fmtScore();
+      if (navigator.vibrate) navigator.vibrate(12);
+      if (cleared >= R * C) finish();
+    } else if (n > 0) { flash = { x: ox + rc.c0 * cell, y: oy + rc.r0 * cell, w: (rc.c1 - rc.c0 + 1) * cell, h: (rc.r1 - rc.r0 + 1) * cell, a: 1 }; }
+  }
+  function finish() {
+    if (over) return; over = true; cancelAnimationFrame(raf); sel = null; draw();
+    const full = cleared >= R * C, left = Math.max(0, Math.floor(SEC - elapsed())), bonus = full && mode === 'casual' ? left : 0, total = cleared + bonus;
+    result = { cleared, bonus, total, full, mode }; phase = 'result'; render();
+    if (NG.Badge) NG.Badge.run({ q_plays: 1, q_apples: cleared, q100: cleared >= 100, q120: cleared >= 120, q130: cleared >= 130, q_perfect: full && mode === 'casual', q_fast: fast10 >= 20, q_combo: maxDrag >= 5 });
+    const m = mode, prevBest = best[m];
+    NG.recordTop(gid(m), 'score', total, { cleared }).then(async (res) => {
+      const line = $('recLine'); if (!line) return;
+      const prev = res && res.prev && res.prev.score != null ? res.prev.score : prevBest;
+      if (prev == null || total > prev) { line.insertAdjacentHTML('beforeend', `<span class="newrec">★ ${t('newRec')}</span>`); if (prev != null) line.insertAdjacentHTML('beforeend', `<span class="lbl">${t('prevBest', prev)}</span>`); NG.confetti(); }
+      best[m] = prev == null ? total : Math.max(prev, total); setBest();
+      try { const rows = await NG.leaderboard(gid(m), 'score', 200, false); const i = rows.findIndex(r => r.uid === NG.me.uid); if (i >= 0) line.insertAdjacentHTML('beforeend', `<span class="lbl">${NG.icon('trophy', 12)} ${t('myRank', i + 1)}</span>`); } catch {}
+    });
+  }
+  function render() {
+    const ov = $('ov');
+    $('hud').classList.toggle('hidden', phase !== 'play' && phase !== 'cd');
+    $('acts').classList.toggle('hidden', phase !== 'result');
+    ov.classList.toggle('hidden', phase === 'play');
+    if (phase === 'intro') {
+      const pc = matchMedia('(hover: hover)').matches;
+      ov.innerHTML = `<div class="big-ic">${NG.icon('apple', 64)}</div><h2>${t('gameName')}</h2><p>${t('intro')}</p>
+        <div class="modes"><button type="button" class="mode classic" data-m="classic"><span class="top2"></span><b>${t('mClassic')}</b><small>${t('mClassicD')}</small><span class="bst">${t('bestCard', best.classic)}</span></button>
+        <button type="button" class="mode casual" data-m="casual"><span class="top2"></span><b>${t('mCasual')}</b><small>${t('mCasualD')}</small><span class="bst">${t('bestCard', best.casual)}</span></button></div>
+        <div class="hint">${t('modeHint')}</div><p style="font-size:11px;opacity:.6">${pc ? t('keyHint') : ''}</p>`;
+      ov.querySelectorAll('.mode').forEach(b => b.addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); mode = b.dataset.m; setBest(); begin(); }));
+    } else if (phase === 'result') {
+      const r = result;
+      ov.innerHTML = `<div class="lbl">${t('resLbl')}</div><div class="big">${r.total}<small>${t('pts')}</small></div><div class="grade">${r.full ? t('perfect') : t('grade', r.cleared)}</div>
+        <div class="sub2">${t('apples', r.cleared)}${r.bonus ? ' · ' + t('bonus', r.bonus) : ''}</div>
+        <div id="recLine" style="min-height:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center"></div>`;
+    }
+  }
+
+  // ── 입력: 드래그로 사각형 선택 ───────────────────────────
+  const cellAt = (e) => { const b = stage.getBoundingClientRect(); const c = Math.floor((e.clientX - b.left - ox) / cell), r = Math.floor((e.clientY - b.top - oy) / cell); return { r: Math.max(0, Math.min(R - 1, r)), c: Math.max(0, Math.min(C - 1, c)), inside: r >= 0 && r < R && c >= 0 && c < C }; };
+  let pid = null;
+  stage.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (phase !== 'play' || pid !== null) return;
+    const p = cellAt(e); if (!p.inside) return;
+    pid = e.pointerId; stage.setPointerCapture?.(pid); sel = { r0: p.r, c0: p.c, r1: p.r, c1: p.c };
+  });
+  stage.addEventListener('pointermove', (e) => { if (e.pointerId === pid && sel) { const p = cellAt(e); sel.r1 = p.r; sel.c1 = p.c; } });
+  const up = (e) => { if (e.pointerId !== pid) return; pid = null; if (phase === 'play') release(); else sel = null; };
+  ['pointerup', 'pointercancel'].forEach(ev => stage.addEventListener(ev, up));
+  stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  addEventListener('keydown', (e) => {
+    if (phase === 'intro' && (e.code === 'Digit1' || e.code === 'Numpad1')) { mode = 'classic'; setBest(); begin(); }
+    else if (phase === 'intro' && (e.code === 'Digit2' || e.code === 'Numpad2')) { mode = 'casual'; setBest(); begin(); }
+    else if (phase === 'result' && (e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); begin(); }
+  });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && phase === 'play') finish(); });
+  $('againBtn').addEventListener('click', begin);
+  $('modeBtn').addEventListener('click', () => { phase = 'intro'; render(); setBest(); draw(); });
+  $('rankBtn').addEventListener('click', () => { location.href = 'index.html?tab=rank&g=' + gid(mode); });
+  $('homeBtn').addEventListener('click', () => { location.href = 'index.html'; });
+  appleImg.onload = () => { if (phase !== 'play') draw(); };
+  newBoard(); render(); resize(); newBoard(); draw();
+})();
+</script>
+</body>
+</html>

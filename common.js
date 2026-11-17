@@ -74,6 +74,13 @@
       info: { time: { ko: '약 1분', ja: '約1分' }, rules: {
         ko: ['화면 왼쪽/오른쪽을 누르고 있으면 그쪽으로 움직여요.', '떨어지는 똥에 한 번이라도 맞으면 끝!', '시간이 갈수록 빨라져요. 버틴 시간으로 랭킹에 올라가요.'],
         ja: ['画面の左／右を押している間、その方向に動きます。', '落ちてくるうんちに1回でも当たったら終わり！', 'だんだん速くなります。生存時間でランキングに載ります。'] } } },
+    { id: 'apple', type: 'solo', page: 'apple.html', icon: 'apple', bg: '#5a2a3a', min: 1, max: 1, name: { ko: '사과게임', ja: 'りんごゲーム' }, rankName: { ko: '사과게임 · 클래식', ja: 'りんご · クラシック' },
+      desc: { ko: '드래그한 사각형의 합이 10이 되면 사과가 펑!', ja: 'ドラッグした四角の合計が10ならりんごがポン！' }, rank: { field: 'score', label: { ko: '최고 점수', ja: 'ベストスコア' }, unit: { ko: '점', ja: '点' } },
+      info: { time: { ko: '120초', ja: '120秒' }, rules: {
+        ko: ['드래그로 사각형을 그려서 안의 숫자 합이 10이 되면 사과가 사라져요.', '클래식은 완전 랜덤, 캐주얼은 전부 지울 수 있는 판이에요.', '120초 안에 지운 사과 수가 점수! 캐주얼에서 전부 지우면 남은 시간이 보너스예요.'],
+        ja: ['ドラッグで四角を作り、中の数字の合計が10になるとりんごが消えます。', 'クラシックは完全ランダム、カジュアルは全部消せる盤面です。', '120秒で消したりんごの数がスコア！カジュアルで全部消すと残り時間がボーナス。'] } } },
+    { id: 'applec', type: 'solo', rankOnly: true, page: 'apple.html', icon: 'apple', bg: '#5a2a3a', min: 1, max: 1, name: { ko: '사과게임', ja: 'りんごゲーム' }, rankName: { ko: '사과게임 · 캐주얼', ja: 'りんご · カジュアル' },
+      desc: { ko: '', ja: '' }, rank: { field: 'score', label: { ko: '최고 점수', ja: 'ベストスコア' }, unit: { ko: '점', ja: '点' } } },
   ];
   NG.game = (id) => NG.GAMES.find(g => g.id === id);
 
@@ -235,13 +242,14 @@
     sound: ['....kk....', '...kwk..k.', 'kkkwwk...k', 'kwwwwk.k.k', 'kwwwwk.k.k', 'kkkwwk...k', '...kwk..k.', '....kk....'],
     note: ['...kkkkkk.', '...kwwwwk.', '...kwkkwk.', '...kwk.kk.', '...kwk....', '.kkkwk....', 'kwwwwk....', 'kwwwk.....', '.kkk......'],
     nunchi: ['................', '....kkkkkkkk....', '..kkqqffffffkg..', '.kqqffffffffggg.', '.kqfffffffffgwg.', 'kfffffffffffgggk', 'kfffkkfffkkffgfk', 'kfffkwfffkwffffk', 'kffffffffffffffk', 'kfppfffffffppffk', '.kfffkfkfkffffk.', '.kffffkfkfffffk.', '..kffffffffffk..', '...kkffffffkk...', '.....kkkkkk.....', '................'],
+    apple: ['.......kk.......', '.......kbk..kk..', '......kbk.kmmk..', '...kkkkkkkkkkk..', '..krrrrkkrrrrrk.', '.krwwrrrrrrrrrrk', '.krwrrrrrrrrrrrk', '.krrrrrrrrrrrrrk', '.krrrrrrrrrrrrrk', '.krrrrrrrrrrrrak', '.krrrrrrrrrrraak', '..krrrrrrrrrrak.', '..krrrrrrrrrak..', '...kkrrrrrrkk...', '.....kkkkkk.....', '................'],
     poop: ['................', '.......k........', '......knk.......', '.....knnnk......', '....kknnnnkk....', '...knnnnnnnnk...', '...kbnnnnnnbk...', '..kkknnnnnnkkk..', '.knnnnnnnnnnnnk.', '.knnwknnnnwknnk.', 'knnnkknnnnkknnnk', 'knpnnnnkknnnnpnk', 'kbnnnnnnnnnnnnbk', '.kbbnnnnnnnnbbk.', '..kkkkkkkkkkkk..', '................'],
     grid: ['kkkkkkkkkkkkkkkk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kmmmmkmmmmkwwwwk', 'kkkkkkkkkkkkkkkk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kwwwwkyyyykwwwwk', 'kkkkkkkkkkkkkkkk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kwwwwkwwwwkwwwwk', 'kkkkkkkkkkkkkkkk'],
     who: ['.....kkkkkk.....', '.....kwkkwk.....', '.....kwwwkk.....', '.....kwwkwk.....', '.....kwwwwk.....', '.....kwwkwk.....', '.....kwwwwk.....', '..kkkkkkkkkkkk..', '.kvvvvkkkkvvvvk.', '.kvlvvvvvvvvvvk.', '.kvlvvvvvvvvvvk.', '.kvvvvvppvvvvvk.', '.kvvvvppppvvvvk.', '.kvvvvvppvvvvvk.', '.kddddddddddddk.', '..kkkkkkkkkkkk..'],
     star: ['....kk....', '...kyyk...', 'kkkkyykkkk', 'kyyyyyyyyk', '.kyyyyyyk.', '..kyyyyk..', '.kyykkyyk.', '.kkk..kkk.'],
     back: ['...kk.....', '..kwk.....', '.kwwkkkkk.', 'kwwwwwwwwk', '.kwwkkkkk.', '..kwk.....', '...kk.....'],
   };
-  const ICON_PAL = {'k': '#2a1f3d', 'w': '#ffffff', 'y': '#ffd23f', 'p': '#ff4d8d', 'm': '#2ee6a6', 'g': '#4d8dff', 'v': '#a46bff', 'l': '#c9a8ff', 'o': '#ff9f3a', 'r': '#e2506e', 's': '#8e94a8', 'd': '#5a4a7a', 'b': '#9b6a3f', 'n': '#c8955f', 'x': '#07050e', 'f': '#ffd9b0', 'q': '#fff1a8'};
+  const ICON_PAL = {'k': '#2a1f3d', 'w': '#ffffff', 'y': '#ffd23f', 'p': '#ff4d8d', 'm': '#2ee6a6', 'g': '#4d8dff', 'v': '#a46bff', 'l': '#c9a8ff', 'o': '#ff9f3a', 'r': '#e2506e', 's': '#8e94a8', 'd': '#5a4a7a', 'b': '#9b6a3f', 'n': '#c8955f', 'x': '#07050e', 'f': '#ffd9b0', 'q': '#fff1a8', 'a': '#b83a58'};
   const AV_COMMON = {'k': '#2a1f3d', 'e': '#1d1433', 'w': '#ffffff', 'p': '#ff8fb1', 'm': '#e2506e'};
   NG.AV = AV;
   const pxSVG = (rows, col, size, h) => {
